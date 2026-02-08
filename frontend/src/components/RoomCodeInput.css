@@ -1,0 +1,83 @@
+.room-code-input {
+  margin-bottom: 1.5rem;
+}
+
+.room-code-input__form {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.room-code-input__field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.room-code-input__label {
+  font-weight: 600;
+  color: #333;
+  font-size: 0.875rem;
+}
+
+.room-code-input__text-input {
+  padding: 0.75rem;
+  font-size: 1rem;
+  border: 2px solid #ccc;
+  border-radius: 6px;
+  transition: border-color 0.2s ease;
+}
+
+.room-code-input__text-input:focus {
+  outline: none;
+  border-color: #2196f3;
+}
+
+.room-code-input__text-input--code {
+  font-family: 'Courier New', monospace;
+  font-size: 1.25rem;
+  font-weight: 600;
+  letter-spacing: 0.2em;
+  text-align: center;
+  text-transform: uppercase;
+}
+
+.room-code-input__button {
+  padding: 0.75rem 1.5rem;
+  font-size: 1rem;
+  font-weight: 600;
+  border: none;
+  background-color: #2196f3;
+  color: #fff;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.room-code-input__button:hover:not(:disabled) {
+  background-color: #1976d2;
+  transform: translateY(-2px);
+}
+
+.room-code-input__button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.room-code-input__display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 1rem;
+  background-color: #e3f2fd;
+  border-radius: 8px;
+}
+
+.room-code-input__code {
+  font-family: 'Courier New', monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  color: #2196f3;
+}

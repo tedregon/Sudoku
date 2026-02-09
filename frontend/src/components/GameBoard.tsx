@@ -4,9 +4,7 @@ import './GameBoard.css';
 
 interface GameBoardProps {
   puzzle: (number | null)[];
-  playerMoves: Map<number, number>;
   selectedCell: number | null;
-  selectedNumber: number | null;
   showCandidates: boolean;
   getCellValue: (cellIndex: number) => number | null;
   getCellCandidates: (cellIndex: number) => number[];
@@ -18,9 +16,7 @@ interface GameBoardProps {
 
 export const GameBoard: React.FC<GameBoardProps> = ({
   puzzle,
-  playerMoves,
   selectedCell,
-  selectedNumber,
   showCandidates,
   getCellValue,
   getCellCandidates,

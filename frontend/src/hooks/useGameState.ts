@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { RoomState, PlayerState, PlayerProgress, Difficulty } from '../types/game.types.js';
+import type { RoomState, PlayerProgress, Difficulty } from '../types/game.types.js';
 import { socketService, type RoomJoinedEvent, type MoveMadeEvent } from '../services/socketService.js';
 import { getConflicts, getCandidates, isValidMove } from '../utils/sudokuValidator.js';
 

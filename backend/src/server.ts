@@ -53,11 +53,12 @@ io.on('connection', (socket) => {
     }
 
     // Join the room
-    room = roomManager.joinRoom(roomCode, playerId, playerName);
-    if (!room) {
+    const joinedRoom = roomManager.joinRoom(roomCode, playerId, playerName);
+    if (!joinedRoom) {
       socket.emit('room-error', { message: 'Failed to join room' });
       return;
     }
+    room = joinedRoom;
 
     socket.join(roomCode);
     socketToPlayer.set(socket.id, { roomCode, playerId });

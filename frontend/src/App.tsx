@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useSocket } from './hooks/useSocket';
 import { useGameState } from './hooks/useGameState';
 import { GameBoard } from './components/GameBoard';
@@ -62,10 +62,6 @@ function App() {
     }
   };
 
-  // Convert player moves Map to the format expected by GameBoard
-  const playerMoves = roomState?.playerState?.moves instanceof Map
-    ? roomState.playerState.moves
-    : new Map(Object.entries(roomState?.playerState?.moves || {}).map(([k, v]) => [Number(k), v as number]));
 
   if (!roomState) {
     return (
@@ -157,9 +153,7 @@ function App() {
                 <div className="app__game-area">
                   <GameBoard
                     puzzle={roomState.puzzle.grid}
-                    playerMoves={playerMoves}
                     selectedCell={selectedCell}
-                    selectedNumber={selectedNumber}
                     showCandidates={showCandidates}
                     getCellValue={getCellValue}
                     getCellCandidates={getCellCandidates}

@@ -141,7 +141,7 @@ export class PuzzleGenerator {
   }
 
   private removeCells(solution: number[], cellsToKeep: number, seed?: string): (number | null)[] {
-    const puzzle = [...solution];
+    const puzzle: (number | null)[] = [...solution];
     const totalCells = puzzle.length;
     const cellsToRemove = totalCells - cellsToKeep;
     

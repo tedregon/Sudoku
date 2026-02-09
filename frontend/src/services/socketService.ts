@@ -67,6 +67,9 @@ export class SocketService {
 
   // Game events
   makeMove(cellIndex: number, value: number | null): void {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'socketService.ts:69',message:'makeMove called',data:{socketExists:!!this.socket,isConnected:this.socket?.connected||false,socketId:this.socket?.id||null,cellIndex,value},timestamp:Date.now(),runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+    // #endregion
     this.socket?.emit('make-move', { cellIndex, value });
   }
 

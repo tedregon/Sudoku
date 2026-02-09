@@ -152,6 +152,9 @@ export function useGameState() {
   }, []);
 
   const makeMove = useCallback((cellIndex: number, value: number | null) => {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGameState.ts:154',message:'makeMove callback called',data:{hasRoomState:!!roomState,roomCode:roomState?.roomCode||null,hasPlayerState:!!roomState?.playerState,cellIndex,value},timestamp:Date.now(),runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+    // #endregion
     if (!roomState?.playerState) return;
     socketService.makeMove(cellIndex, value);
   }, [roomState]);

@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import { appendFileSync } from 'fs';
 import { RoomManager } from './services/roomManager.js';
 import { GameStateManager } from './services/gameStateManager.js';
 import type { Difficulty, MakeMovePayload, JoinRoomPayload, PlayerState } from './types/game.types.js';
@@ -39,6 +40,10 @@ const socketToPlayer = new Map<string, { roomCode: string; playerId: string }>()
 
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
+  // #region agent log
+  const logPath = '/Users/chip/Documents/GitHub/Sudoku/.cursor/debug.log';
+  appendFileSync(logPath, JSON.stringify({location:'server.ts:40',message:'Socket connected',data:{socketId:socket.id},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})+'\n');
+  // #endregion
 
   socket.on('join-room', (payload: JoinRoomPayload) => {
     const { roomCode, playerName } = payload;
@@ -91,6 +96,10 @@ io.on('connection', (socket) => {
     const room = roomManager.createRoom(difficulty, playerId, playerName);
     socket.join(room.roomCode);
     socketToPlayer.set(socket.id, { roomCode: room.roomCode, playerId });
+    // #region agent log
+    const logPath = '/Users/chip/Documents/GitHub/Sudoku/.cursor/debug.log';
+    appendFileSync(logPath, JSON.stringify({location:'server.ts:93',message:'create-room: socketToPlayer set',data:{socketId:socket.id,playerId,roomCode:room.roomCode,mapSize:socketToPlayer.size},timestamp:Date.now(),runId:'run1',hypothesisId:'B'})+'\n');
+    // #endregion
 
     const playerState = gameStateManager.getPlayerState(room, playerId);
     const allPlayers = gameStateManager.getAllPlayersProgress(room);
@@ -105,8 +114,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('make-move', (payload: MakeMovePayload) => {
+    // #region agent log
+    const logPath = '/Users/chip/Documents/GitHub/Sudoku/.cursor/debug.log';
+    const mapEntries = Array.from(socketToPlayer.entries()).map(([k,v])=>({socketId:k,roomCode:v.roomCode,playerId:v.playerId}));
+    appendFileSync(logPath, JSON.stringify({location:'server.ts:107',message:'make-move received',data:{socketId:socket.id,cellIndex:payload.cellIndex,value:payload.value,mapSize:socketToPlayer.size,mapEntries},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})+'\n');
+    // #endregion
     const playerInfo = socketToPlayer.get(socket.id);
     if (!playerInfo) {
+      // #region agent log
+      appendFileSync(logPath, JSON.stringify({location:'server.ts:110',message:'make-move: playerInfo not found',data:{socketId:socket.id,mapSize:socketToPlayer.size,mapEntries},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})+'\n');
+      // #endregion
       socket.emit('move-error', { message: 'Not in a room' });
       return;
     }

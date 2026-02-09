@@ -15,5 +15,9 @@ export default defineConfig({
   preview: {
     port: process.env.PORT ? parseInt(process.env.PORT) : 8080,
     host: '0.0.0.0',
+    allowedHosts: [
+      'sudoku-frontend-production-e610.up.railway.app',
+      '.up.railway.app', // Allow all Railway subdomains
+    ],
   },
 });

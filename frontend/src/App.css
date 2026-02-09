@@ -20,40 +20,139 @@ body {
 .app {
   min-height: 100vh;
   background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  padding: 2rem;
+  padding-top: 80px; /* Space for fixed header */
+  display: flex;
+  flex-direction: column;
+}
+
+/* App Header - Outside container */
+.app-header {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  background-color: #fff;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+  z-index: 100;
+  padding: 1rem 2rem;
+}
+
+.app-header__content {
+  max-width: 1200px;
+  margin: 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 2rem;
+  flex-wrap: wrap;
+}
+
+.app-header__title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #333;
+  flex-shrink: 0;
+}
+
+.app-header__difficulties {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+  flex: 1;
+}
+
+.app-header__difficulty-btn {
+  padding: 0.5rem 1rem;
+  font-size: 0.875rem;
+  font-weight: 500;
+  border: 2px solid #2196f3;
+  background-color: #fff;
+  color: #2196f3;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.app-header__difficulty-btn:hover {
+  background-color: #e3f2fd;
+  transform: translateY(-2px);
+}
+
+.app-header__difficulty-btn--active {
+  background-color: #2196f3;
+  color: #fff;
+}
+
+.app-header__difficulty-btn--active:hover {
+  background-color: #1976d2;
+}
+
+.app-header__join-btn {
+  padding: 0.5rem 1.5rem;
+  font-size: 0.875rem;
+  font-weight: 600;
+  border: 2px solid #4caf50;
+  background-color: #fff;
+  color: #4caf50;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.app-header__join-btn:hover {
+  background-color: #e8f5e9;
+  transform: translateY(-2px);
+}
+
+/* Subheader - Inside container */
+.app__subheader {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
+  margin-bottom: 1.5rem;
+  padding-bottom: 1rem;
+  border-bottom: 2px solid #e0e0e0;
+  flex-wrap: wrap;
+}
+
+.app__subheader-title {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+  color: #333;
+  flex-shrink: 0;
+}
+
+.app__subheader-room-code {
+  font-size: 1rem;
+  color: #666;
+  flex: 1;
+}
+
+.app__subheader-code {
+  font-family: 'Courier New', monospace;
+  font-weight: 700;
+  font-size: 1.125rem;
+  color: #2196f3;
+  letter-spacing: 0.1em;
 }
 
 .app__container {
-  max-width: 1200px;
-  margin: 0 auto;
+  max-width: 1400px;
+  margin: 0 auto 2rem;
   background-color: #fff;
   color: #333;
   border-radius: 12px;
   padding: 2rem;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  flex: 1 0 auto;
 }
 
 .app__container--game {
   padding: 1.5rem;
 }
 
-.app__title {
-  text-align: center;
-  color: #333;
-  margin: 0 0 2rem 0;
-  font-size: 2rem;
-}
-
-.app__header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1.5rem;
-}
-
-.app__header .app__title {
-  margin: 0;
-}
 
 .app__create-section {
   display: flex;
@@ -195,22 +294,13 @@ body {
   font-size: 1.5rem;
 }
 
-.app__progress-section {
-  width: 100%;
-  max-width: 600px;
-  margin-bottom: 1.5rem;
-  display: flex;
-  gap: 2rem;
-  justify-content: center;
-  align-items: center;
-}
 
 .app__game-area {
   display: flex;
   gap: 2rem;
   align-items: flex-start;
   justify-content: center;
-  width: 100%;
+  width: 800px;
   margin-bottom: 1.5rem;
 }
 
@@ -254,7 +344,38 @@ body {
 
 @media (max-width: 768px) {
   .app {
-    padding: 1rem;
+    padding-top: 120px; /* More space for header on mobile */
+    padding-left: 1rem;
+    padding-right: 1rem;
+  }
+
+  .app-header {
+    padding: 0.75rem 1rem;
+  }
+
+  .app-header__content {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .app-header__difficulties {
+    width: 100%;
+    justify-content: flex-start;
+  }
+
+  .app-header__join-btn {
+    width: 100%;
+  }
+
+  .app__subheader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .app__subheader-room-code {
+    width: 100%;
   }
 
   .app__container {
@@ -270,11 +391,6 @@ body {
     width: 100%;
   }
 
-  .app__progress-section {
-    flex-direction: column;
-    gap: 1rem;
-  }
-
   .app__game-area {
     flex-direction: column;
     align-items: center;
@@ -284,4 +400,29 @@ body {
     width: 100%;
     max-width: 600px;
   }
+}
+
+/* Footer */
+.app__footer {
+  text-align: center;
+  padding: 2rem;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 0.9rem;
+  flex-shrink: 0;
+}
+
+.app__footer-link {
+  color: rgba(255, 255, 255, 1);
+  text-decoration: none;
+  font-weight: 600;
+  transition: opacity 0.2s ease;
+}
+
+.app__footer-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.app__footer-link:visited {
+  color: rgba(255, 255, 255, 1);
 }

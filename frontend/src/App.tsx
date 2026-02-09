@@ -1,15 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSocket } from './hooks/useSocket';
 import { useGameState } from './hooks/useGameState';
+import { socketService } from './services/socketService';
 import { GameBoard } from './components/GameBoard';
 import { NumberSelector } from './components/NumberSelector';
-import { DifficultySelector } from './components/DifficultySelector';
-import { RoomCodeInput } from './components/RoomCodeInput';
-import { ProgressBar } from './components/ProgressBar';
-import { Timer } from './components/Timer';
+import { JoinRoomModal } from './components/JoinRoomModal';
 import { PlayerList } from './components/PlayerList';
+import { Timer } from './components/Timer';
 import type { Difficulty } from './types/game.types';
 import './App.css';
+
+const DIFFICULTIES: Array<{ value: Difficulty; label: string }> = [
+  { value: 'very-easy', label: 'Very Easy' },
+  { value: 'easy', label: 'Easy' },
+  { value: 'medium', label: 'Medium' },
+  { value: 'hard', label: 'Hard' },
+  { value: 'very-hard', label: 'Very Hard' },
+];
+
+const getDifficultyLabel = (difficulty: Difficulty): string => {
+  return DIFFICULTIES.find(d => d.value === difficulty)?.label || difficulty;
+};
 
 function App() {
   useSocket();
@@ -34,12 +45,69 @@ function App() {
     getInvalidCells,
   } = useGameState();
 
-  const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useState(() => {
+    // Try to get name from localStorage, otherwise use default
+    return localStorage.getItem('sudoku-player-name') || 'Player';
+  });
+  const [showJoinModal, setShowJoinModal] = useState(false);
+  const hasAutoCreated = useRef(false);
 
-  const handleCreateRoom = () => {
-    if (difficulty && playerName.trim()) {
-      createRoom(difficulty, playerName.trim());
+  // Auto-create "Very Hard" room on mount, waiting for socket connection
+  useEffect(() => {
+    if (roomState || hasAutoCreated.current) {
+      return;
+    }
+
+    const socket = socketService.getSocket();
+    if (!socket) {
+      // Socket not created yet, wait a bit and retry
+      const timeoutId = setTimeout(() => {
+        const retrySocket = socketService.getSocket();
+        if (retrySocket && retrySocket.connected && !hasAutoCreated.current && !roomState) {
+          hasAutoCreated.current = true;
+          createRoom('very-hard', playerName);
+        }
+      }, 100);
+      return () => clearTimeout(timeoutId);
+    }
+
+    const tryCreateRoom = () => {
+      // Re-check socket connection status and state
+      const currentSocket = socketService.getSocket();
+      if (currentSocket?.connected && !hasAutoCreated.current && !roomState) {
+        hasAutoCreated.current = true;
+        createRoom('very-hard', playerName);
+      }
+    };
+
+    if (socket.connected) {
+      tryCreateRoom();
+    } else {
+      socket.once('connect', tryCreateRoom);
+    }
+
+    return () => {
+      socket.off('connect', tryCreateRoom);
+    };
+  }, [roomState, createRoom, playerName]);
+
+  // Save player name to localStorage when it changes
+  useEffect(() => {
+    if (playerName) {
+      localStorage.setItem('sudoku-player-name', playerName);
+    }
+  }, [playerName]);
+
+  const handleDifficultyClick = (difficulty: Difficulty) => {
+    // Leave current room if in one, then create new room
+    if (roomState) {
+      leaveRoom();
+      // Small delay to ensure leave completes before creating new room
+      setTimeout(() => {
+        createRoom(difficulty, playerName);
+      }, 100);
+    } else {
+      createRoom(difficulty, playerName);
     }
   };
 
@@ -62,94 +130,69 @@ function App() {
     }
   };
 
-
-  if (!roomState) {
-    return (
-      <div className="app">
-        <div className="app__container">
-          <h1 className="app__title">Multiplayer Sudoku</h1>
-          
-          <DifficultySelector
-            selectedDifficulty={difficulty}
-            onDifficultySelect={(diff) => {
-              setDifficulty(diff);
-            }}
-          />
-          {difficulty && (
-            <div className="app__create-section">
-              <div className="app__field">
-                <label htmlFor="create-player-name" className="app__label">
-                  Your Name:
-                </label>
-                <input
-                  id="create-player-name"
-                  type="text"
-                  value={playerName}
-                  onChange={(e) => setPlayerName(e.target.value)}
-                  placeholder="Enter your name"
-                  className="app__text-input"
-                  maxLength={20}
-                />
-              </div>
-              <button
-                onClick={handleCreateRoom}
-                className="app__button app__button--primary"
-                disabled={!playerName.trim()}
-              >
-                Create Room
-              </button>
-            </div>
-          )}
-
-          <div className="app__divider">OR</div>
-
-          <RoomCodeInput onJoin={handleJoinRoom} />
-
-          {error && <div className="app__error">{error}</div>}
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="app">
-      <div className="app__container app__container--game">
-        <div className="app__header">
-          <h1 className="app__title">Multiplayer Sudoku</h1>
-          <button onClick={leaveRoom} className="app__button app__button--secondary">
-            Leave Room
+      {/* App Header - Outside app_container */}
+      <header className="app-header">
+        <div className="app-header__content">
+          <h1 className="app-header__title">Sudoku</h1>
+          <div className="app-header__difficulties">
+            {DIFFICULTIES.map((difficulty) => (
+              <button
+                key={difficulty.value}
+                className="app-header__difficulty-btn"
+                onClick={() => handleDifficultyClick(difficulty.value)}
+              >
+                {difficulty.label}
+              </button>
+            ))}
+          </div>
+          <button
+            onClick={() => setShowJoinModal(true)}
+            className="app-header__join-btn"
+          >
+            Join Room
           </button>
         </div>
+      </header>
 
-        <div className="app__game-layout">
-          <div className="app__main-content">
-            <RoomCodeInput roomCode={roomState.roomCode} onJoin={handleJoinRoom} />
+      {/* Join Room Modal */}
+      <JoinRoomModal
+        isOpen={showJoinModal}
+        onClose={() => setShowJoinModal(false)}
+        onJoin={handleJoinRoom}
+      />
 
-            {roomState.playerState && (
-              <>
-                {roomState.playerState.progress === 100 && (
-                  <div className="app__completion-message">
-                    <h2 className="app__completion-title">🎉 You Finished!</h2>
-                    <div className="app__completion-time">
-                      Your time: <Timer 
-                        timerStartTime={roomState.playerState.timerStartTime}
-                        completionTime={roomState.playerState.completionTime}
-                      />
-                    </div>
-                  </div>
-                )}
-                <div className="app__progress-section">
-                  <ProgressBar
-                    progress={roomState.playerState.progress}
-                    label="Your Progress"
-                  />
-                  <Timer
+      {/* Main Content */}
+      <div className="app__container app__container--game">
+        {/* Subheader - Inside app_container */}
+        {roomState && (
+          <div className="app__subheader">
+            <h2 className="app__subheader-title">
+              {getDifficultyLabel(roomState.difficulty)}
+            </h2>
+            <div className="app__subheader-room-code">
+              Room: <span className="app__subheader-code">{roomState.roomCode}</span>
+            </div>
+          </div>
+        )}
+
+        {roomState && roomState.playerState && (
+          <>
+            {roomState.playerState.progress === 100 && (
+              <div className="app__completion-message">
+                <h2 className="app__completion-title">🎉 You Finished!</h2>
+                <div className="app__completion-time">
+                  Your time: <Timer 
                     timerStartTime={roomState.playerState.timerStartTime}
                     completionTime={roomState.playerState.completionTime}
-                    label="Your Time"
                   />
                 </div>
+              </div>
+            )}
 
+            <div className="app__game-layout">
+              <div className="app__main-content">
                 <div className="app__game-area">
                   <GameBoard
                     puzzle={roomState.puzzle.grid}
@@ -183,20 +226,33 @@ function App() {
                     </div>
                   </div>
                 </div>
-              </>
-            )}
-          </div>
+              </div>
 
-          <div className="app__sidebar">
-            <PlayerList
-              players={roomState.allPlayers}
-              currentPlayerId={roomState.playerState?.playerId || null}
-            />
-          </div>
-        </div>
+              <div className="app__sidebar">
+                <PlayerList
+                  players={roomState.allPlayers}
+                  currentPlayerId={roomState.playerState?.playerId || null}
+                />
+              </div>
+            </div>
+          </>
+        )}
 
         {error && <div className="app__error">{error}</div>}
       </div>
+
+      {/* Footer */}
+      <footer className="app__footer">
+        Created by{' '}
+        <a
+          href="https://chipdoes.app"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="app__footer-link"
+        >
+          chipdoes.app
+        </a>
+      </footer>
     </div>
   );
 }

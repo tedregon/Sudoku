@@ -1,7 +1,13 @@
 import { io, Socket } from 'socket.io-client';
 import type { Difficulty, Puzzle, PlayerState, PlayerProgress } from '../types/game.types.js';
 
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 'http://localhost:3001';
+// Get socket URL from environment variable
+// In Railway, set VITE_SOCKET_URL to your backend service URL
+// Example: https://sudoku-backend-production-xxxx.up.railway.app
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || 
+  (import.meta.env.PROD 
+    ? window.location.origin.replace('sudoku-frontend', 'sudoku-backend')
+    : 'http://localhost:3001');
 
 export interface RoomJoinedEvent {
   roomCode: string;

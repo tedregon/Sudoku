@@ -32,7 +32,40 @@ export class PuzzleGenerator {
     const solution = this.flattenGrid();
     
     // Create puzzle by removing cells based on difficulty
-    const puzzle = this.removeCells(solution, DIFFICULTY_CELL_COUNTS[difficulty], seed);
+    // Use a timeout to prevent hanging on Railway
+    const startTime = Date.now();
+    const maxGenerationTime = 30000; // 30 seconds max
+    
+    try {
+      const puzzle = this.removeCells(solution, DIFFICULTY_CELL_COUNTS[difficulty], seed, startTime, maxGenerationTime);
+      return {
+        grid: puzzle,
+        solution: solution,
+      };
+    } catch (error) {
+      // If generation times out or fails, fall back to simpler method
+      console.warn('Puzzle generation with uniqueness check failed, using fallback:', error);
+      return this.generateFallback(solution, DIFFICULTY_CELL_COUNTS[difficulty], seed);
+    }
+  }
+
+  private generateFallback(solution: number[], cellsToKeep: number, seed?: string): Puzzle {
+    // Fallback: simple random removal without uniqueness check
+    const puzzle: (number | null)[] = [...solution];
+    const totalCells = puzzle.length;
+    const cellsToRemove = totalCells - cellsToKeep;
+    
+    const indices = Array.from({ length: totalCells }, (_, i) => i);
+    const random = seed ? this.seededRandom(seed) : Math.random;
+    
+    for (let i = indices.length - 1; i > 0; i--) {
+      const j = Math.floor(random() * (i + 1));
+      [indices[i], indices[j]] = [indices[j], indices[i]];
+    }
+    
+    for (let i = cellsToKeep; i < indices.length; i++) {
+      puzzle[indices[i]] = null;
+    }
     
     return {
       grid: puzzle,
@@ -94,8 +127,14 @@ export class PuzzleGenerator {
     // Convert flat puzzle to 2D grid
     const tempGrid = this.flatToGrid(puzzle);
     let solutionCount = 0;
+    const maxSolutions = 2; // Only need to know if unique (1) or not (2+)
 
     const countSolutionsRecursive = (grid: number[][]): void => {
+      // Optimization: stop if we already found 2 solutions (not unique)
+      if (solutionCount >= maxSolutions) {
+        return;
+      }
+
       // Find empty cell
       let emptyRow = -1;
       let emptyCol = -1;
@@ -118,6 +157,11 @@ export class PuzzleGenerator {
 
       // Try numbers 1-9
       for (let num = 1; num <= 9; num++) {
+        // Early exit if we found enough solutions
+        if (solutionCount >= maxSolutions) {
+          return;
+        }
+
         // Check if valid
         let valid = true;
         
@@ -159,12 +203,6 @@ export class PuzzleGenerator {
         // Place number and recurse
         grid[emptyRow][emptyCol] = num;
         countSolutionsRecursive(grid);
-        
-        // Optimization: stop if we found 2 solutions (not unique)
-        if (solutionCount >= 2) {
-          grid[emptyRow][emptyCol] = 0;
-          return;
-        }
         
         // Backtrack
         grid[emptyRow][emptyCol] = 0;
@@ -238,7 +276,7 @@ export class PuzzleGenerator {
     return grid;
   }
 
-  private removeCells(solution: number[], cellsToKeep: number, seed?: string): (number | null)[] {
+  private removeCells(solution: number[], cellsToKeep: number, seed?: string, startTime?: number, maxTime?: number): (number | null)[] {
     // Start with complete solution
     const puzzle: (number | null)[] = [...solution];
     const totalCells = puzzle.length;
@@ -256,9 +294,17 @@ export class PuzzleGenerator {
     
     let removedCount = 0;
     let index = 0;
+    const maxIterations = totalCells; // Safety limit
+    let iterations = 0;
     
     // Try to remove cells while maintaining uniqueness
-    while (removedCount < cellsToRemove && index < indices.length) {
+    while (removedCount < cellsToRemove && index < indices.length && iterations < maxIterations) {
+      // Check timeout
+      if (startTime && maxTime && (Date.now() - startTime) > maxTime) {
+        throw new Error('Puzzle generation timeout');
+      }
+      
+      iterations++;
       const cellIndex = indices[index];
       const originalValue = puzzle[cellIndex];
       

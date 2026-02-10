@@ -72,30 +72,86 @@ export class GameStateManager {
     // Count empty cells in puzzle
     const totalEmpty = room.puzzle.grid.filter(cell => cell === null).length;
     
-    // Count only valid (correct) cells filled by player
-    let correctMoves = 0;
+    // Count valid (non-conflicting) cells filled by player
+    let validMoves = 0;
+    
     player.moves.forEach((value, cellIndex) => {
-      // Check if the move matches the solution
-      if (value === room.puzzle.solution[cellIndex]) {
-        correctMoves++;
+      const isValid = this.isValidMove(room, player, cellIndex, value);
+      if (isValid) {
+        validMoves++;
       }
     });
     
-    // Calculate progress percentage based on correct moves only
+    // Calculate progress percentage based on valid (non-conflicting) moves
     const previousProgress = player.progress;
-    player.progress = totalEmpty > 0 ? Math.round((correctMoves / totalEmpty) * 100) : 100;
+    player.progress = totalEmpty > 0 ? Math.round((validMoves / totalEmpty) * 100) : 100;
     
-    // Check if player just completed the puzzle (reached 100% AND solution is correct)
+    // Check if player just completed the puzzle (reached 100% with all valid moves)
     if (player.progress === 100 && previousProgress < 100 && player.timerStartTime !== null) {
-      // Validate that all filled cells match the solution
-      const isCorrect = this.isSolutionCorrect(room, player);
-      if (isCorrect) {
+      // Check that all empty cells are filled and all moves are valid
+      const allCellsFilled = player.moves.size === totalEmpty;
+      const allMovesValid = validMoves === totalEmpty;
+      
+      if (allCellsFilled && allMovesValid) {
         player.completionTime = Date.now();
-      } else {
-        // Don't set completionTime if solution is incorrect
-        // Progress can still be 100% but completionTime remains null
       }
     }
+  }
+
+  private isValidMove(room: RoomState, player: PlayerState, cellIndex: number, value: number): boolean {
+    if (value < 1 || value > 9) return false;
+    if (cellIndex < 0 || cellIndex >= 81) return false;
+    if (room.puzzle.grid[cellIndex] !== null) return false; // Pre-filled cell
+
+    const row = Math.floor(cellIndex / 9);
+    const col = cellIndex % 9;
+    const boxRow = Math.floor(row / 3) * 3;
+    const boxCol = Math.floor(col / 3) * 3;
+
+    // Build complete grid (puzzle + player moves)
+    const allFilled = new Map<number, number>();
+    
+    // Add puzzle cells
+    room.puzzle.grid.forEach((cell, idx) => {
+      if (cell !== null) {
+        allFilled.set(idx, cell);
+      }
+    });
+    
+    // Add player moves (excluding current cell)
+    player.moves.forEach((val, idx) => {
+      if (idx !== cellIndex) {
+        allFilled.set(idx, val);
+      }
+    });
+
+    // Check row
+    for (let c = 0; c < 9; c++) {
+      const idx = row * 9 + c;
+      if (idx !== cellIndex && allFilled.get(idx) === value) {
+        return false;
+      }
+    }
+
+    // Check column
+    for (let r = 0; r < 9; r++) {
+      const idx = r * 9 + col;
+      if (idx !== cellIndex && allFilled.get(idx) === value) {
+        return false;
+      }
+    }
+
+    // Check box
+    for (let r = 0; r < 3; r++) {
+      for (let c = 0; c < 3; c++) {
+        const idx = (boxRow + r) * 9 + (boxCol + c);
+        if (idx !== cellIndex && allFilled.get(idx) === value) {
+          return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   private isSolutionCorrect(room: RoomState, player: PlayerState): boolean {

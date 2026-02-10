@@ -90,6 +90,94 @@ export class PuzzleGenerator {
     return false;
   }
 
+  private countSolutions(puzzle: (number | null)[]): number {
+    // Convert flat puzzle to 2D grid
+    const tempGrid = this.flatToGrid(puzzle);
+    let solutionCount = 0;
+
+    const countSolutionsRecursive = (grid: number[][]): void => {
+      // Find empty cell
+      let emptyRow = -1;
+      let emptyCol = -1;
+      for (let row = 0; row < this.size; row++) {
+        for (let col = 0; col < this.size; col++) {
+          if (grid[row][col] === 0) {
+            emptyRow = row;
+            emptyCol = col;
+            break;
+          }
+        }
+        if (emptyRow !== -1) break;
+      }
+
+      // If no empty cell, we found a solution
+      if (emptyRow === -1) {
+        solutionCount++;
+        return;
+      }
+
+      // Try numbers 1-9
+      for (let num = 1; num <= 9; num++) {
+        // Check if valid
+        let valid = true;
+        
+        // Check row
+        for (let x = 0; x < this.size; x++) {
+          if (grid[emptyRow][x] === num) {
+            valid = false;
+            break;
+          }
+        }
+        
+        if (!valid) continue;
+        
+        // Check column
+        for (let x = 0; x < this.size; x++) {
+          if (grid[x][emptyCol] === num) {
+            valid = false;
+            break;
+          }
+        }
+        
+        if (!valid) continue;
+        
+        // Check box
+        const boxRow = emptyRow - (emptyRow % this.boxSize);
+        const boxCol = emptyCol - (emptyCol % this.boxSize);
+        for (let i = 0; i < this.boxSize; i++) {
+          for (let j = 0; j < this.boxSize; j++) {
+            if (grid[boxRow + i][boxCol + j] === num) {
+              valid = false;
+              break;
+            }
+          }
+          if (!valid) break;
+        }
+        
+        if (!valid) continue;
+
+        // Place number and recurse
+        grid[emptyRow][emptyCol] = num;
+        countSolutionsRecursive(grid);
+        
+        // Optimization: stop if we found 2 solutions (not unique)
+        if (solutionCount >= 2) {
+          grid[emptyRow][emptyCol] = 0;
+          return;
+        }
+        
+        // Backtrack
+        grid[emptyRow][emptyCol] = 0;
+      }
+    };
+
+    // Create a deep copy to avoid modifying the original
+    const gridCopy = tempGrid.map(row => [...row]);
+    countSolutionsRecursive(gridCopy);
+    
+    return solutionCount;
+  }
+
   private findEmpty(): [number, number] | null {
     for (let row = 0; row < this.size; row++) {
       for (let col = 0; col < this.size; col++) {
@@ -140,24 +228,63 @@ export class PuzzleGenerator {
     return flat;
   }
 
+  private flatToGrid(flat: (number | null)[]): number[][] {
+    const grid: number[][] = Array(this.size).fill(null).map(() => Array(this.size).fill(0));
+    for (let i = 0; i < flat.length; i++) {
+      const row = Math.floor(i / this.size);
+      const col = i % this.size;
+      grid[row][col] = flat[i] ?? 0;
+    }
+    return grid;
+  }
+
   private removeCells(solution: number[], cellsToKeep: number, seed?: string): (number | null)[] {
+    // Start with complete solution
     const puzzle: (number | null)[] = [...solution];
     const totalCells = puzzle.length;
     const cellsToRemove = totalCells - cellsToKeep;
     
-    // Use seed for reproducibility if provided
-    let random = seed ? this.seededRandom(seed) : Math.random;
-    
+    // Create shuffled list of all cell positions
     const indices = Array.from({ length: totalCells }, (_, i) => i);
-    // Shuffle using seeded random if seed provided
+    const random = seed ? this.seededRandom(seed) : Math.random;
+    
+    // Shuffle indices
     for (let i = indices.length - 1; i > 0; i--) {
       const j = Math.floor(random() * (i + 1));
       [indices[i], indices[j]] = [indices[j], indices[i]];
     }
     
-    // Remove cells (keep first cellsToKeep indices)
-    for (let i = cellsToKeep; i < indices.length; i++) {
-      puzzle[indices[i]] = null;
+    let removedCount = 0;
+    let index = 0;
+    
+    // Try to remove cells while maintaining uniqueness
+    while (removedCount < cellsToRemove && index < indices.length) {
+      const cellIndex = indices[index];
+      const originalValue = puzzle[cellIndex];
+      
+      // Temporarily remove the cell
+      puzzle[cellIndex] = null;
+      
+      // Check if puzzle still has unique solution
+      const solutionCount = this.countSolutions(puzzle);
+      
+      if (solutionCount === 1) {
+        // Unique solution maintained, keep the removal
+        removedCount++;
+      } else {
+        // Multiple solutions or no solution, restore the cell
+        puzzle[cellIndex] = originalValue;
+      }
+      
+      index++;
+    }
+    
+    // Log warning if we couldn't remove enough cells
+    if (removedCount < cellsToRemove) {
+      console.warn(
+        `Could only remove ${removedCount} cells while maintaining uniqueness, ` +
+        `requested ${cellsToRemove} cells to remove. Puzzle may have more clues than intended.`
+      );
     }
     
     return puzzle;

@@ -185,6 +185,7 @@ body {
   transition: 0s;
   font-weight: 700;
   font-style: normal;
+  min-width: 100px;
 }
 
 .app__button--copy-code:hover {
@@ -428,13 +429,13 @@ body {
 }
 
 .app__error {
-  margin-top: 1rem;
-  padding: 1rem;
+  padding: 0.5rem 1rem;
   background-color: #ffc8d1;
   color: #c62828;
   border-radius: 6px;
   text-align: center;
   font-weight: 500;
+  width: 100%;
 }
 
 @media (max-width: 768px) {

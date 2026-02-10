@@ -139,6 +139,17 @@ function App() {
     }
   }, [playerName]);
 
+  // Focus the selected cell when it changes
+  useEffect(() => {
+    if (selectedCell !== null) {
+      // Find the cell element and focus it
+      const cellElement = document.querySelector(`[data-cell-index="${selectedCell}"]`) as HTMLElement;
+      if (cellElement) {
+        cellElement.focus();
+      }
+    }
+  }, [selectedCell]);
+
   const handleDifficultyClick = (difficulty: Difficulty) => {
     // Leave current room if in one, then create new room
     if (roomState) {
@@ -198,6 +209,28 @@ function App() {
 
   const handleClear = () => {
     if (selectedCell !== null) {
+      clearCell(selectedCell);
+      selectNumber(null);
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (selectedCell === null) return;
+
+    // Check if the cell is prefilled (can't edit prefilled cells)
+    const isPrefilled = roomState?.puzzle.grid[selectedCell] !== null;
+    if (isPrefilled) return;
+
+    // Handle number keys 1-9
+    const number = parseInt(e.key);
+    if (number >= 1 && number <= 9) {
+      e.preventDefault();
+      fillCell(selectedCell, number);
+      selectNumber(number);
+    }
+    // Handle backspace or delete to clear
+    else if (e.key === 'Backspace' || e.key === 'Delete') {
+      e.preventDefault();
       clearCell(selectedCell);
       selectNumber(null);
     }
@@ -268,8 +301,8 @@ function App() {
                     </div>
                   )}
                 </div>
+                {error && <div className="app__error">{error}</div>}
               </div>
-              {error && <div className="app__error">{error}</div>}
             </div>
           )}
 
@@ -300,6 +333,7 @@ function App() {
                       getHighlightedCells={getHighlightedCells}
                       getInvalidCells={getInvalidCells}
                       onCellClick={selectCell}
+                      onKeyDown={handleKeyDown}
                     />
 
                     <div className="app__game-controls">

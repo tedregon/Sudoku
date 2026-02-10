@@ -9,6 +9,8 @@ interface CellProps {
   hasConflict: boolean;
   showCandidates: boolean;
   onClick: () => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
+  cellIndex?: number;
   className?: string;
 }
 
@@ -21,6 +23,8 @@ export const Cell: React.FC<CellProps> = ({
   hasConflict,
   showCandidates,
   onClick,
+  onKeyDown,
+  cellIndex,
   className = '',
 }) => {
   const cellClasses = [
@@ -35,7 +39,13 @@ export const Cell: React.FC<CellProps> = ({
     .join(' ');
 
   return (
-    <div className={cellClasses} onClick={onClick}>
+    <div
+      className={cellClasses}
+      onClick={onClick}
+      onKeyDown={onKeyDown}
+      tabIndex={isSelected && !isPrefilled ? 0 : -1}
+      data-cell-index={cellIndex}
+    >
       {value !== null ? (
         <span className="cell__value">{value}</span>
       ) : showCandidates && candidates.length > 0 ? (

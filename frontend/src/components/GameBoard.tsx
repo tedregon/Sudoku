@@ -11,6 +11,7 @@ interface GameBoardProps {
   getHighlightedCells: () => number[];
   getInvalidCells: () => number[];
   onCellClick: (cellIndex: number) => void;
+  onKeyDown?: (e: React.KeyboardEvent) => void;
 }
 
 export const GameBoard: React.FC<GameBoardProps> = ({
@@ -23,6 +24,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   getHighlightedCells,
   getInvalidCells,
   onCellClick,
+  onKeyDown,
 }) => {
   const highlightedCells = getHighlightedCells();
   const invalidCells = getInvalidCells();
@@ -65,6 +67,8 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         hasConflict={hasConflict}
         showCandidates={showCandidates}
         onClick={() => onCellClick(cellIndex)}
+        onKeyDown={onKeyDown}
+        cellIndex={cellIndex}
         className={borderClasses.join(' ')}
       />
     );

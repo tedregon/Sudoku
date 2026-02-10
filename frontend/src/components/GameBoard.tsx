@@ -63,7 +63,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
         candidates={candidates}
         isPrefilled={isPrefilled}
         isSelected={isSelected}
-        isHighlighted={isHighlighted || isInvalid}
+        isHighlighted={isHighlighted}
         hasConflict={hasConflict}
         showCandidates={showCandidates}
         onClick={() => onCellClick(cellIndex)}

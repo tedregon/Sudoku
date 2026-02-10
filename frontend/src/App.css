@@ -811,6 +811,10 @@ body {
   z-index: 1;
 }
 
+.cell--highlighted {
+  background-color: #bacaff;
+}
+
 .cell--highlighted:focus {
   border: 2px solid #4331D1;
   background-color: #bacaff;

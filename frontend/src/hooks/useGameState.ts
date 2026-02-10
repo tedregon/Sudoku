@@ -287,16 +287,37 @@ export function useGameState() {
   }, [roomState]);
 
   const getHighlightedCells = useCallback((): number[] => {
-    if (!selectedNumber || !roomState) return [];
+    if (!roomState) return [];
+    
+    // Get the value of the selected cell (if any)
+    let numberToHighlight: number | null = null;
+    if (selectedCell !== null) {
+      numberToHighlight = getCellValue(selectedCell);
+    }
+    
+    // If no selected cell or selected cell is empty, use selectedNumber as fallback
+    if (numberToHighlight === null) {
+      numberToHighlight = selectedNumber;
+    }
+    
+    // If still no number to highlight, return empty array
+    if (numberToHighlight === null) return [];
+    
+    // Find all cells that contain the same number
     const highlighted: number[] = [];
     for (let i = 0; i < 81; i++) {
       const value = getCellValue(i);
-      if (value === selectedNumber) {
+      if (value === numberToHighlight) {
         highlighted.push(i);
       }
     }
+    
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGameState.ts:315',message:'getHighlightedCells called',data:{selectedCell,selectedNumber,numberToHighlight,highlightedCount:highlighted.length,highlightedCells:highlighted.slice(0,10)},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    
     return highlighted;
-  }, [selectedNumber, roomState, getCellValue]);
+  }, [selectedCell, selectedNumber, roomState, getCellValue]);
 
   const getInvalidCells = useCallback((): number[] => {
     if (!selectedNumber || !roomState || !roomState.playerState) return [];

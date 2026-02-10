@@ -814,8 +814,18 @@ body {
   z-index: 1;
 }
 
-.cell--highlighted {
-  /* background-color: #f4f7f9; */
+.cell--highlighted:focus {
+  border: 2px solid #4331D1;
+  background-color: #bacaff;
+  z-index: 1;
+  outline: none;
+}
+
+.cell--highlighted:focus-visible {
+  border: 2px solid #4331D1;
+  background-color: #bacaff;
+  z-index: 1;
+  outline: none;
 }
 
 .cell--conflict {

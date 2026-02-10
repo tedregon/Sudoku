@@ -685,13 +685,13 @@ body {
 
 .join-room-modal__close {
   position: absolute;
-  top: 1rem;
-  right: 1rem;
+  top: 32px;
+  right: 32px;
   background: none;
   border: none;
   font-size: 2rem;
   line-height: 1;
-  color: #666;
+  color: #061222;
   cursor: pointer;
   padding: 0;
   width: 32px;
@@ -712,14 +712,14 @@ body {
   margin: 0 0 1.5rem 0;
   font-size: 1.5rem;
   font-weight: 600;
-  color: #333;
-  text-align: center;
+  color: #061222;
+  text-align: left;
 }
 
 .join-room-modal__form {
   display: flex;
   flex-direction: column;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .join-room-modal__field {
@@ -730,30 +730,28 @@ body {
 
 .join-room-modal__label {
   font-weight: 600;
-  color: #333;
+  color: #061222;
   font-size: 0.875rem;
 }
 
 .join-room-modal__input {
   padding: 0.75rem;
   font-size: 1rem;
-  border: 2px solid #ccc;
+  border: 1px solid #9f9f9f;
   border-radius: 6px;
   transition: border-color 0.2s ease;
 }
 
 .join-room-modal__input:focus {
   outline: none;
-  border-color: #2196f3;
+  border-color: #4F3BF4;
 }
 
 .join-room-modal__input--code {
   font-family: 'Figtree', sans-serif;
-  font-size: 1.25rem;
-  font-weight: 600;
-  letter-spacing: 0.2em;
-  text-align: center;
-  text-transform: uppercase;
+  font-size: 1rem;
+  font-weight: 500;
+  text-align: left;
 }
 
 .join-room-modal__button {
@@ -761,7 +759,7 @@ body {
   font-size: 1rem;
   font-weight: 600;
   border: none;
-  background-color: #2196f3;
+  background-color: #4F3BF4;
   color: #fff;
   border-radius: 6px;
   cursor: pointer;
@@ -770,8 +768,7 @@ body {
 }
 
 .join-room-modal__button:hover:not(:disabled) {
-  background-color: #1976d2;
-  transform: translateY(-2px);
+  background-color: #4331D1;
 }
 
 .join-room-modal__button:disabled {

@@ -18,7 +18,7 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, currentPlayerId
     setEditName(player.playerName);
   };
 
-  const handleSave = (playerId: string) => {
+  const handleSave = (_playerId: string) => {
     if (editName.trim() && onUpdatePlayerName) {
       onUpdatePlayerName(editName.trim());
     }

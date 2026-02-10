@@ -112,12 +112,12 @@ export class SocketService {
     }
     
     // If socket is connected, emit immediately
-    if (this.socket.connected) {
+    if (this.socket && this.socket.connected) {
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'socketService.ts:102',message:'joinRoom: Socket connected, emitting join-room',data:{roomCode,playerName},timestamp:Date.now(),runId:'run1',hypothesisId:'B'})}).catch(()=>{});
       // #endregion
       this.socket.emit('join-room', { roomCode, playerName });
-    } else {
+    } else if (this.socket) {
       // Socket not connected yet, wait for connection
       // #region agent log
       fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'socketService.ts:107',message:'joinRoom: Socket not connected, waiting for connect event',data:{roomCode,playerName},timestamp:Date.now(),runId:'run1',hypothesisId:'B'})}).catch(()=>{});

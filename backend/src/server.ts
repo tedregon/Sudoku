@@ -153,6 +153,34 @@ io.on('connection', (socket) => {
     });
   });
 
+  socket.on('update-player-name', (payload: { newName: string }) => {
+    const playerInfo = socketToPlayer.get(socket.id);
+    if (!playerInfo) {
+      socket.emit('room-error', { message: 'Not in a room' });
+      return;
+    }
+
+    const room = roomManager.getRoom(playerInfo.roomCode);
+    if (!room) {
+      socket.emit('room-error', { message: 'Room not found' });
+      return;
+    }
+
+    const success = roomManager.updatePlayerName(playerInfo.roomCode, playerInfo.playerId, payload.newName);
+    if (!success) {
+      socket.emit('room-error', { message: 'Failed to update player name' });
+      return;
+    }
+
+    // Broadcast updated player list to all players in room
+    const allPlayers = gameStateManager.getAllPlayersProgress(room);
+    io.to(playerInfo.roomCode).emit('player-name-updated', {
+      playerId: playerInfo.playerId,
+      newName: payload.newName,
+      allPlayers,
+    });
+  });
+
   socket.on('leave-room', () => {
     const playerInfo = socketToPlayer.get(socket.id);
     if (playerInfo) {

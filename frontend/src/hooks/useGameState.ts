@@ -142,6 +142,25 @@ export function useGameState() {
       });
     };
 
+    const handlePlayerNameUpdated = (data: { playerId: string; newName: string; allPlayers: PlayerProgress[] }) => {
+      setRoomState((prev) => {
+        if (!prev) return null;
+        // Update local player state if it's our name change
+        let updatedPlayerState = prev.playerState;
+        if (prev.playerState && prev.playerState.playerId === data.playerId) {
+          updatedPlayerState = {
+            ...prev.playerState,
+            playerName: data.newName,
+          };
+        }
+        return {
+          ...prev,
+          playerState: updatedPlayerState,
+          allPlayers: data.allPlayers,
+        };
+      });
+    };
+
     socketService.onRoomCreated(handleRoomCreated);
     socketService.onRoomJoined(handleRoomJoined);
     socketService.onRoomError(handleRoomError);
@@ -149,6 +168,7 @@ export function useGameState() {
     socketService.onMoveError(handleMoveError);
     socketService.onPlayerJoined(handlePlayerJoined);
     socketService.onPlayerLeft(handlePlayerLeft);
+    socketService.onPlayerNameUpdated(handlePlayerNameUpdated);
 
     // Set up reconnect handler
     socket.on('connect', handleReconnect);
@@ -167,6 +187,7 @@ export function useGameState() {
       socketService.off('move-error', handleMoveError);
       socketService.off('player-joined', handlePlayerJoined);
       socketService.off('player-left', handlePlayerLeft);
+      socketService.off('player-name-updated', handlePlayerNameUpdated);
     };
   }, []);
 
@@ -186,6 +207,10 @@ export function useGameState() {
     setRoomState(null);
     setSelectedCell(null);
     setSelectedNumber(null);
+  }, []);
+
+  const updatePlayerName = useCallback((newName: string) => {
+    socketService.updatePlayerName(newName);
   }, []);
 
   const makeMove = useCallback((cellIndex: number, value: number | null) => {
@@ -303,6 +328,7 @@ export function useGameState() {
     createRoom,
     joinRoom,
     leaveRoom,
+    updatePlayerName,
     selectCell,
     selectNumber,
     fillCell,

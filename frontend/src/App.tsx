@@ -34,6 +34,7 @@ function App() {
     createRoom,
     joinRoom,
     leaveRoom,
+    updatePlayerName,
     selectCell,
     selectNumber,
     fillCell,
@@ -311,7 +312,7 @@ function App() {
                           checked={showCandidates}
                           onChange={(e) => setShowCandidates(e.target.checked)}
                         />
-                        <span>Show Candidates</span>
+                        <span>Candidates</span>
                       </label>
                     </div>
                   </div>
@@ -322,6 +323,10 @@ function App() {
                 <PlayerList
                   players={roomState.allPlayers}
                   currentPlayerId={roomState.playerState?.playerId || null}
+                  onUpdatePlayerName={(newName) => {
+                    setPlayerName(newName);
+                    updatePlayerName(newName);
+                  }}
                 />
               </div>
             </div>

@@ -135,6 +135,10 @@ export class SocketService {
     this.socket?.emit('leave-room');
   }
 
+  updatePlayerName(newName: string): void {
+    this.socket?.emit('update-player-name', { newName });
+  }
+
   // Game events
   makeMove(cellIndex: number, value: number | null): void {
     this.socket?.emit('make-move', { cellIndex, value });
@@ -167,6 +171,10 @@ export class SocketService {
 
   onPlayerLeft(callback: (data: { playerId: string; allPlayers: PlayerProgress[] }) => void): void {
     this.socket?.on('player-left', callback);
+  }
+
+  onPlayerNameUpdated(callback: (data: { playerId: string; newName: string; allPlayers: PlayerProgress[] }) => void): void {
+    this.socket?.on('player-name-updated', callback);
   }
 
   // Remove listeners

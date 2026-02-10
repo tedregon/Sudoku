@@ -90,6 +90,21 @@ export class RoomManager {
     }
   }
 
+  updatePlayerName(roomCode: string, playerId: string, newName: string): boolean {
+    const room = this.getRoom(roomCode);
+    if (!room) {
+      return false;
+    }
+
+    const player = room.players.get(playerId);
+    if (!player) {
+      return false;
+    }
+
+    player.playerName = newName;
+    return true;
+  }
+
   private isRoomExpired(room: RoomState): boolean {
     return Date.now() - room.createdAt > this.ROOM_EXPIRY_MS;
   }

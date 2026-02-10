@@ -145,7 +145,7 @@ body {
 .app__subheader {
   display: flex;
   align-items: center;
-  gap: 1.5rem;
+  gap: 1rem;
   padding-bottom: 1rem;
   flex-wrap: wrap;
 }

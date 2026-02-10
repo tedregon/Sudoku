@@ -128,6 +128,9 @@ body {
   font-size: 1rem;
   color: #666;
   flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
 }
 
 .app__subheader-code {
@@ -136,6 +139,47 @@ body {
   font-size: 1.125rem;
   color: #2196f3;
   letter-spacing: 0.1em;
+}
+
+.app__button--copy-code {
+  background-color: #2196f3;
+  color: #fff;
+  padding: 0.375rem 0.75rem;
+  font-size: 0.875rem;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-weight: 500;
+}
+
+.app__button--copy-code:hover {
+  background-color: #1976d2;
+  transform: translateY(-1px);
+}
+
+.app__notification {
+  position: fixed;
+  top: 100px;
+  right: 2rem;
+  background-color: #4caf50;
+  color: #fff;
+  padding: 1rem 1.5rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+  z-index: 1000;
+  animation: slideIn 0.3s ease-out;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+    opacity: 0;
+  }
+  to {
+    transform: translateX(0);
+    opacity: 1;
+  }
 }
 
 .app__container {
@@ -376,6 +420,16 @@ body {
 
   .app__subheader-room-code {
     width: 100%;
+  }
+
+  .app__subheader .app__button--share {
+    width: 100%;
+  }
+
+  .app__notification {
+    right: 1rem;
+    left: 1rem;
+    top: 90px;
   }
 
   .app__container {

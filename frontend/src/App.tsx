@@ -50,44 +50,88 @@ function App() {
     return localStorage.getItem('sudoku-player-name') || 'Player';
   });
   const [showJoinModal, setShowJoinModal] = useState(false);
+  const [showCopyNotification, setShowCopyNotification] = useState(false);
   const hasAutoCreated = useRef(false);
+  const hasCheckedUrlParams = useRef(false);
+  const hasUrlRoomCode = useRef(false);
 
-  // Auto-create "Very Hard" room on mount, waiting for socket connection
+  // Check URL parameters for room code and auto-join (runs first, before auto-create)
   useEffect(() => {
-    if (roomState || hasAutoCreated.current) {
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:59',message:'URL check useEffect running',data:{hasCheckedUrlParams:hasCheckedUrlParams.current,hasRoomState:!!roomState,url:window.location.href,search:window.location.search},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+    if (hasCheckedUrlParams.current || roomState) {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:61',message:'URL check early return',data:{reason:hasCheckedUrlParams.current?'hasCheckedUrlParams':'hasRoomState'},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+      // #endregion
       return;
     }
 
-    const socket = socketService.getSocket();
-    if (!socket) {
-      // Socket not created yet, wait a bit and retry
-      const timeoutId = setTimeout(() => {
-        const retrySocket = socketService.getSocket();
-        if (retrySocket && retrySocket.connected && !hasAutoCreated.current && !roomState) {
-          hasAutoCreated.current = true;
-          createRoom('very-hard', playerName);
+    const urlParams = new URLSearchParams(window.location.search);
+    const roomCode = urlParams.get('room');
+    hasUrlRoomCode.current = !!roomCode;
+    hasCheckedUrlParams.current = true;
+    // #region agent log
+    fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:68',message:'URL params parsed',data:{roomCode:roomCode||null,hasRoomCode:!!roomCode,hasUrlRoomCode:hasUrlRoomCode.current},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})}).catch(()=>{});
+    // #endregion
+
+    if (roomCode) {
+      // Clear URL params after reading them
+      window.history.replaceState({}, '', window.location.pathname);
+      
+      // Use joinRoom which now handles waiting for socket connection internally
+      // This is more robust than manually checking socket state
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:72',message:'Calling joinRoom from URL (will wait for socket)',data:{roomCode,playerName},timestamp:Date.now(),runId:'run1',hypothesisId:'B'})}).catch(()=>{});
+      // #endregion
+      joinRoom(roomCode, playerName);
+    }
+  }, [joinRoom, playerName, roomState]);
+
+  // Auto-create "Very Hard" room on mount, waiting for socket connection
+  // Only runs if no URL params were found and no room exists
+  useEffect(() => {
+    // Don't auto-create if we're already in a room or have already auto-created
+    if (roomState || hasAutoCreated.current) {
+      return;
+    }
+    
+    // Wait a bit to see if URL params will trigger a join
+    const checkDelay = setTimeout(() => {
+      // Double-check that we're not joining from URL and no room exists
+      if (!roomState && !hasAutoCreated.current && !hasUrlRoomCode.current) {
+        const socket = socketService.getSocket();
+        if (!socket) {
+          // Socket not created yet, wait a bit and retry
+          setTimeout(() => {
+            const retrySocket = socketService.getSocket();
+            if (retrySocket && retrySocket.connected && !hasAutoCreated.current && !roomState) {
+              hasAutoCreated.current = true;
+              createRoom('very-hard', playerName);
+            }
+          }, 100);
+          return;
         }
-      }, 100);
-      return () => clearTimeout(timeoutId);
-    }
 
-    const tryCreateRoom = () => {
-      // Re-check socket connection status and state
-      const currentSocket = socketService.getSocket();
-      if (currentSocket?.connected && !hasAutoCreated.current && !roomState) {
-        hasAutoCreated.current = true;
-        createRoom('very-hard', playerName);
+        const tryCreateRoom = () => {
+          // Re-check socket connection status and state
+          const currentSocket = socketService.getSocket();
+          if (currentSocket?.connected && !hasAutoCreated.current && !roomState) {
+            hasAutoCreated.current = true;
+            createRoom('very-hard', playerName);
+          }
+        };
+
+        if (socket.connected) {
+          tryCreateRoom();
+        } else {
+          socket.once('connect', tryCreateRoom);
+        }
       }
-    };
-
-    if (socket.connected) {
-      tryCreateRoom();
-    } else {
-      socket.once('connect', tryCreateRoom);
-    }
+    }, 500); // Wait 500ms to see if URL join happens
 
     return () => {
-      socket.off('connect', tryCreateRoom);
+      clearTimeout(checkDelay);
     };
   }, [roomState, createRoom, playerName]);
 
@@ -114,6 +158,38 @@ function App() {
   const handleJoinRoom = (roomCode: string, name: string) => {
     setPlayerName(name);
     joinRoom(roomCode, name);
+  };
+
+  const handleCopyRoomCode = async () => {
+    if (!roomState) return;
+
+    const roomCode = roomState.roomCode;
+    
+    try {
+      await navigator.clipboard.writeText(roomCode);
+      setShowCopyNotification(true);
+      setTimeout(() => {
+        setShowCopyNotification(false);
+      }, 2000);
+    } catch (err) {
+      // Fallback for browsers that don't support clipboard API
+      const textArea = document.createElement('textarea');
+      textArea.value = roomCode;
+      textArea.style.position = 'fixed';
+      textArea.style.opacity = '0';
+      document.body.appendChild(textArea);
+      textArea.select();
+      try {
+        document.execCommand('copy');
+        setShowCopyNotification(true);
+        setTimeout(() => {
+          setShowCopyNotification(false);
+        }, 2000);
+      } catch (fallbackErr) {
+        console.error('Failed to copy room code:', fallbackErr);
+      }
+      document.body.removeChild(textArea);
+    }
   };
 
   const handleNumberSelect = (number: number | null) => {
@@ -173,7 +249,21 @@ function App() {
             </h2>
             <div className="app__subheader-room-code">
               Room: <span className="app__subheader-code">{roomState.roomCode}</span>
+              <button
+                onClick={handleCopyRoomCode}
+                className="app__button app__button--copy-code"
+                title="Copy room code"
+              >
+                Copy Code
+              </button>
             </div>
+          </div>
+        )}
+
+        {/* Copy notification */}
+        {showCopyNotification && (
+          <div className="app__notification">
+            Room code copied!
           </div>
         )}
 

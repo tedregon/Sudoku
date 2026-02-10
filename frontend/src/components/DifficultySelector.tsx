@@ -1,5 +1,4 @@
 import React from 'react';
-import './DifficultySelector.css';
 import type { Difficulty } from '../types/game.types.js';
 
 interface DifficultySelectorProps {

@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import './Timer.css';
 
 interface TimerProps {
   timerStartTime: number | null;

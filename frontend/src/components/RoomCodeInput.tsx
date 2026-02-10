@@ -1,5 +1,4 @@
 import React, { useState } from 'react';
-import './RoomCodeInput.css';
 
 interface RoomCodeInputProps {
   onJoin: (roomCode: string, playerName: string) => void;

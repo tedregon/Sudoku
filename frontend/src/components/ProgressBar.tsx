@@ -1,5 +1,4 @@
 import React from 'react';
-import './ProgressBar.css';
 
 interface ProgressBarProps {
   progress: number;
@@ -16,7 +15,6 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({ progress, label }) => 
           style={{ width: `${Math.min(100, Math.max(0, progress))}%` }}
         />
       </div>
-      <div className="progress-bar__percentage">{progress}%</div>
     </div>
   );
 };

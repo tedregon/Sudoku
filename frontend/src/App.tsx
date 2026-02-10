@@ -18,10 +18,6 @@ const DIFFICULTIES: Array<{ value: Difficulty; label: string }> = [
   { value: 'very-hard', label: 'Very Hard' },
 ];
 
-const getDifficultyLabel = (difficulty: Difficulty): string => {
-  return DIFFICULTIES.find(d => d.value === difficulty)?.label || difficulty;
-};
-
 function App() {
   useSocket();
   const {
@@ -212,17 +208,24 @@ function App() {
       {/* App Header - Outside app_container */}
       <header className="app-header">
         <div className="app-header__content">
-          <h1 className="app-header__title">Sudoku</h1>
+          <h1 className="app-header__title">Sudoku Rivals</h1>
           <div className="app-header__difficulties">
-            {DIFFICULTIES.map((difficulty) => (
-              <button
-                key={difficulty.value}
-                className="app-header__difficulty-btn"
-                onClick={() => handleDifficultyClick(difficulty.value)}
-              >
-                {difficulty.label}
-              </button>
-            ))}
+            <span className="app-header__difficulty-label">Difficulty</span>
+            <div className="app-header__difficulty-buttons">
+              {DIFFICULTIES.map((difficulty) => (
+                <button
+                  key={difficulty.value}
+                  className={`app-header__difficulty-btn ${
+                    roomState?.difficulty === difficulty.value
+                      ? 'app-header__difficulty-btn--active'
+                      : ''
+                  }`}
+                  onClick={() => handleDifficultyClick(difficulty.value)}
+                >
+                  {difficulty.label}
+                </button>
+              ))}
+            </div>
           </div>
           <button
             onClick={() => setShowJoinModal(true)}
@@ -242,98 +245,101 @@ function App() {
 
       {/* Main Content */}
       <div className="app__container app__container--game">
-        {/* Subheader - Inside app_container */}
-        {roomState && (
-          <div className="app__subheader">
-            <h2 className="app__subheader-title">
-              {getDifficultyLabel(roomState.difficulty)}
-            </h2>
-            <div className="app__subheader-room-code">
-              Room: <span className="app__subheader-code">{roomState.roomCode}</span>
-              <button
-                onClick={handleCopyRoomCode}
-                className="app__button app__button--copy-code"
-                title="Copy room code"
-              >
-                Copy Code
-              </button>
-            </div>
-          </div>
-        )}
-
-        {/* Copy notification */}
-        {showCopyNotification && (
-          <div className="app__notification">
-            Room code copied!
-          </div>
-        )}
-
-        {roomState && roomState.playerState && (
-          <>
-            {roomState.playerState.completionTime !== null && (
-              <div className="app__completion-message">
-                <h2 className="app__completion-title">🎉 You Finished!</h2>
-                <div className="app__completion-time">
-                  Your time: <Timer 
-                    timerStartTime={roomState.playerState.timerStartTime}
-                    completionTime={roomState.playerState.completionTime}
-                  />
+        <div className="app__game-content">
+          {/* Subheader - Inside app_container */}
+          {roomState && (
+            <div className="app__subheader">
+              <h2 className="app__subheader-title">
+                Room
+              </h2>
+              <div className="app__subheader-room-code">
+                <span className="app__subheader-code">{roomState.roomCode}</span>
+                <div className="app__copy-code-wrapper">
+                  <button
+                    onClick={handleCopyRoomCode}
+                    className="app__button app__button--copy-code"
+                    title="Copy room code"
+                  >
+                    Copy Code
+                  </button>
+                  {showCopyNotification && (
+                    <div className="app__notification">
+                      Room code copied!
+                    </div>
+                  )}
                 </div>
               </div>
-            )}
+              {error && <div className="app__error">{error}</div>}
+            </div>
+          )}
 
-            <div className="app__game-layout">
-              <div className="app__main-content">
-                <div className="app__game-area">
-                  <GameBoard
-                    puzzle={roomState.puzzle.grid}
-                    selectedCell={selectedCell}
-                    showCandidates={showCandidates}
-                    getCellValue={getCellValue}
-                    getCellCandidates={getCellCandidates}
-                    getCellConflicts={getCellConflicts}
-                    getHighlightedCells={getHighlightedCells}
-                    getInvalidCells={getInvalidCells}
-                    onCellClick={selectCell}
-                  />
+          {roomState && roomState.playerState && (
+            <>
+              {roomState.playerState.completionTime !== null && (
+                <div className="app__completion-message">
+                  <h2 className="app__completion-title">🎉 You Finished!</h2>
+                  <div className="app__completion-time">
+                    Your time: <Timer 
+                      timerStartTime={roomState.playerState.timerStartTime}
+                      completionTime={roomState.playerState.completionTime}
+                    />
+                  </div>
+                </div>
+              )}
 
-                  <div className="app__game-controls">
-                    <NumberSelector
-                      selectedNumber={selectedNumber}
-                      hasSelectedCell={selectedCell !== null}
-                      onNumberSelect={handleNumberSelect}
-                      onClear={handleClear}
+              <div className="app__game-layout">
+                <div className="app__main-content">
+                  <div className="app__game-area">
+                    <GameBoard
+                      puzzle={roomState.puzzle.grid}
+                      selectedCell={selectedCell}
+                      showCandidates={showCandidates}
+                      getCellValue={getCellValue}
+                      getCellCandidates={getCellCandidates}
+                      getCellConflicts={getCellConflicts}
+                      getHighlightedCells={getHighlightedCells}
+                      getInvalidCells={getInvalidCells}
+                      onCellClick={selectCell}
                     />
 
-                    <div className="app__controls">
-                      <label className="app__toggle">
-                        <input
-                          type="checkbox"
-                          checked={showCandidates}
-                          onChange={(e) => setShowCandidates(e.target.checked)}
-                        />
-                        <span>Candidates</span>
-                      </label>
+                    <div className="app__game-controls">
+                      <NumberSelector
+                        selectedNumber={selectedNumber}
+                        hasSelectedCell={selectedCell !== null}
+                        onNumberSelect={handleNumberSelect}
+                        onClear={handleClear}
+                      />
+
+                      <div className="app__controls">
+                        <label className="app__toggle">
+                          <input
+                            type="checkbox"
+                            checked={showCandidates}
+                            onChange={(e) => setShowCandidates(e.target.checked)}
+                          />
+                          <span>Show candidates</span>
+                        </label>
+                      </div>
                     </div>
                   </div>
                 </div>
               </div>
+            </>
+          )}
+        </div>
 
-              <div className="app__sidebar">
-                <PlayerList
-                  players={roomState.allPlayers}
-                  currentPlayerId={roomState.playerState?.playerId || null}
-                  onUpdatePlayerName={(newName) => {
-                    setPlayerName(newName);
-                    updatePlayerName(newName);
-                  }}
-                />
-              </div>
-            </div>
-          </>
+        {roomState && roomState.playerState && (
+          <div className="app__sidebar">
+            <PlayerList
+              players={roomState.allPlayers}
+              currentPlayerId={roomState.playerState?.playerId || null}
+              onUpdatePlayerName={(newName) => {
+                setPlayerName(newName);
+                updatePlayerName(newName);
+              }}
+            />
+          </div>
         )}
-
-        {error && <div className="app__error">{error}</div>}
       </div>
 
       {/* Footer */}

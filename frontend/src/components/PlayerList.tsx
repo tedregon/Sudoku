@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { ProgressBar } from './ProgressBar';
 import { Timer } from './Timer';
-import './PlayerList.css';
 import type { PlayerProgress } from '../types/game.types.js';
 
 interface PlayerListProps {

@@ -1,6 +1,5 @@
 import React from 'react';
 import { Cell } from './Cell';
-import './GameBoard.css';
 
 interface GameBoardProps {
   puzzle: (number | null)[];

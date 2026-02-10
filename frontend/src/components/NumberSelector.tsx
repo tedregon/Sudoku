@@ -1,5 +1,4 @@
 import React from 'react';
-import './NumberSelector.css';
 
 interface NumberSelectorProps {
   selectedNumber: number | null;

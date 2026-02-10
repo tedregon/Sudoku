@@ -18,12 +18,12 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, currentPlayerId
         key={player.playerId}
         className={`player-list__item ${
           player.playerId === currentPlayerId ? 'player-list__item--current' : ''
-        } ${player.progress === 100 ? 'player-list__item--completed' : ''}`}
+        } ${player.completionTime !== null ? 'player-list__item--completed' : ''}`}
       >
         <div className="player-list__name">
           {player.playerName}
           {player.playerId === currentPlayerId && ' (You)'}
-          {player.progress === 100 && ' ✓'}
+          {player.completionTime !== null && ' ✓'}
         </div>
         <ProgressBar progress={player.progress} />
         <Timer 

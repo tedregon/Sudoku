@@ -179,7 +179,7 @@ function App() {
 
         {roomState && roomState.playerState && (
           <>
-            {roomState.playerState.progress === 100 && (
+            {roomState.playerState.completionTime !== null && (
               <div className="app__completion-message">
                 <h2 className="app__completion-title">🎉 You Finished!</h2>
                 <div className="app__completion-time">

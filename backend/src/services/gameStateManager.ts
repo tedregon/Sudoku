@@ -72,17 +72,53 @@ export class GameStateManager {
     // Count empty cells in puzzle
     const totalEmpty = room.puzzle.grid.filter(cell => cell === null).length;
     
-    // Count filled cells by player
-    const filled = player.moves.size;
+    // Count only valid (correct) cells filled by player
+    let correctMoves = 0;
+    player.moves.forEach((value, cellIndex) => {
+      // Check if the move matches the solution
+      if (value === room.puzzle.solution[cellIndex]) {
+        correctMoves++;
+      }
+    });
     
-    // Calculate progress percentage
+    // Calculate progress percentage based on correct moves only
     const previousProgress = player.progress;
-    player.progress = totalEmpty > 0 ? Math.round((filled / totalEmpty) * 100) : 100;
+    player.progress = totalEmpty > 0 ? Math.round((correctMoves / totalEmpty) * 100) : 100;
     
-    // Check if player just completed the puzzle (reached 100%)
+    // Check if player just completed the puzzle (reached 100% AND solution is correct)
     if (player.progress === 100 && previousProgress < 100 && player.timerStartTime !== null) {
-      player.completionTime = Date.now();
+      // Validate that all filled cells match the solution
+      const isCorrect = this.isSolutionCorrect(room, player);
+      if (isCorrect) {
+        player.completionTime = Date.now();
+      } else {
+        // Don't set completionTime if solution is incorrect
+        // Progress can still be 100% but completionTime remains null
+      }
     }
+  }
+
+  private isSolutionCorrect(room: RoomState, player: PlayerState): boolean {
+    // Check that all empty cells are filled by player
+    const totalEmpty = room.puzzle.grid.filter(cell => cell === null).length;
+    if (player.moves.size !== totalEmpty) {
+      return false; // Not all cells are filled
+    }
+
+    // Build the complete grid (puzzle + player moves)
+    const completeGrid: (number | null)[] = [...room.puzzle.grid];
+    player.moves.forEach((value, cellIndex) => {
+      completeGrid[cellIndex] = value;
+    });
+
+    // Check that all cells match the solution
+    for (let i = 0; i < 81; i++) {
+      if (completeGrid[i] !== room.puzzle.solution[i]) {
+        return false; // Found a mismatch
+      }
+    }
+
+    return true; // All cells match the solution
   }
 
   getPlayerState(room: RoomState, playerId: string): PlayerState | undefined {

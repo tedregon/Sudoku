@@ -2,8 +2,6 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
-import { appendFileSync, mkdirSync } from 'fs';
-import { dirname } from 'path';
 import { RoomManager } from './services/roomManager.js';
 import { GameStateManager } from './services/gameStateManager.js';
 import type { Difficulty, MakeMovePayload, JoinRoomPayload, PlayerState } from './types/game.types.js';
@@ -39,27 +37,8 @@ const gameStateManager = new GameStateManager();
 // Store socket ID to player ID mapping
 const socketToPlayer = new Map<string, { roomCode: string; playerId: string }>();
 
-// Helper function for safe logging
-function safeLog(data: any) {
-  try {
-    const logPath = '/Users/chip/Documents/GitHub/Sudoku/.cursor/debug.log';
-    const logDir = dirname(logPath);
-    try {
-      mkdirSync(logDir, { recursive: true });
-    } catch (e) {
-      // Directory might already exist, ignore
-    }
-    appendFileSync(logPath, JSON.stringify(data) + '\n');
-  } catch (e) {
-    // Silently fail if logging is not available (e.g., in production)
-  }
-}
-
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
-  // #region agent log
-  safeLog({location:'server.ts:40',message:'Socket connected',data:{socketId:socket.id},timestamp:Date.now(),runId:'run1',hypothesisId:'A'});
-  // #endregion
 
   socket.on('join-room', (payload: JoinRoomPayload) => {
     const { roomCode, playerName } = payload;
@@ -112,9 +91,6 @@ io.on('connection', (socket) => {
     const room = roomManager.createRoom(difficulty, playerId, playerName);
     socket.join(room.roomCode);
     socketToPlayer.set(socket.id, { roomCode: room.roomCode, playerId });
-    // #region agent log
-    safeLog({location:'server.ts:93',message:'create-room: socketToPlayer set',data:{socketId:socket.id,playerId,roomCode:room.roomCode,mapSize:socketToPlayer.size},timestamp:Date.now(),runId:'run1',hypothesisId:'B'});
-    // #endregion
 
     const playerState = gameStateManager.getPlayerState(room, playerId);
     const allPlayers = gameStateManager.getAllPlayersProgress(room);
@@ -129,15 +105,8 @@ io.on('connection', (socket) => {
   });
 
   socket.on('make-move', (payload: MakeMovePayload) => {
-    // #region agent log
-    const mapEntries = Array.from(socketToPlayer.entries()).map(([k,v])=>({socketId:k,roomCode:v.roomCode,playerId:v.playerId}));
-    safeLog({location:'server.ts:107',message:'make-move received',data:{socketId:socket.id,cellIndex:payload.cellIndex,value:payload.value,mapSize:socketToPlayer.size,mapEntries},timestamp:Date.now(),runId:'run1',hypothesisId:'A'});
-    // #endregion
     const playerInfo = socketToPlayer.get(socket.id);
     if (!playerInfo) {
-      // #region agent log
-      safeLog({location:'server.ts:110',message:'make-move: playerInfo not found',data:{socketId:socket.id,mapSize:socketToPlayer.size,mapEntries},timestamp:Date.now(),runId:'run1',hypothesisId:'A'});
-      // #endregion
       socket.emit('move-error', { message: 'Not in a room' });
       return;
     }

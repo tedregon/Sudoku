@@ -2,6 +2,8 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import { appendFileSync, mkdirSync } from 'fs';
+import { dirname } from 'path';
 import { RoomManager } from './services/roomManager.js';
 import { GameStateManager } from './services/gameStateManager.js';
 import type { Difficulty, MakeMovePayload, JoinRoomPayload, PlayerState } from './types/game.types.js';
@@ -37,8 +39,27 @@ const gameStateManager = new GameStateManager();
 // Store socket ID to player ID mapping
 const socketToPlayer = new Map<string, { roomCode: string; playerId: string }>();
 
+// Helper function for safe logging
+function safeLog(data: any) {
+  try {
+    const logPath = '/Users/chip/Documents/GitHub/Sudoku/.cursor/debug.log';
+    const logDir = dirname(logPath);
+    try {
+      mkdirSync(logDir, { recursive: true });
+    } catch (e) {
+      // Directory might already exist, ignore
+    }
+    appendFileSync(logPath, JSON.stringify(data) + '\n');
+  } catch (e) {
+    // Silently fail if logging is not available (e.g., in production)
+  }
+}
+
 io.on('connection', (socket) => {
   console.log(`Client connected: ${socket.id}`);
+  // #region agent log
+  safeLog({location:'server.ts:40',message:'Socket connected',data:{socketId:socket.id},timestamp:Date.now(),runId:'run1',hypothesisId:'A'});
+  // #endregion
 
   socket.on('join-room', (payload: JoinRoomPayload) => {
     const { roomCode, playerName } = payload;
@@ -53,19 +74,37 @@ io.on('connection', (socket) => {
       return;
     }
 
-    // Join the room
-    const joinedRoom = roomManager.joinRoom(roomCode, playerId, playerName);
-    if (!joinedRoom) {
-      socket.emit('room-error', { message: 'Failed to join room' });
-      return;
+    // Check if this socket was previously in a room (reconnection scenario)
+    // If the player was in this room before, try to find their old playerId
+    let actualPlayerId = playerId;
+    const existingPlayer = Array.from(room.players.values()).find(
+      p => p.playerName === playerName
+    );
+    
+    // If we find a player with the same name and they're not currently connected,
+    // reuse their playerId to preserve their progress
+    if (existingPlayer && !socketToPlayer.has(existingPlayer.playerId)) {
+      actualPlayerId = existingPlayer.playerId;
+      // Update the existing player's state (they're reconnecting)
+      room.players.set(actualPlayerId, {
+        ...existingPlayer,
+        playerName, // Update name in case it changed
+      });
+    } else {
+      // Join the room (will create new player or return existing)
+      const joinedRoom = roomManager.joinRoom(roomCode, actualPlayerId, playerName);
+      if (!joinedRoom) {
+        socket.emit('room-error', { message: 'Failed to join room' });
+        return;
+      }
+      room = joinedRoom;
     }
-    room = joinedRoom;
 
     socket.join(roomCode);
-    socketToPlayer.set(socket.id, { roomCode, playerId });
+    socketToPlayer.set(socket.id, { roomCode, playerId: actualPlayerId });
 
-    // Send current room state to the new player
-    const playerState = gameStateManager.getPlayerState(room, playerId);
+    // Send current room state to the reconnecting player
+    const playerState = gameStateManager.getPlayerState(room, actualPlayerId);
     const allPlayers = gameStateManager.getAllPlayersProgress(room);
 
     socket.emit('room-joined', {
@@ -76,12 +115,14 @@ io.on('connection', (socket) => {
       allPlayers,
     });
 
-    // Notify other players
-    socket.to(roomCode).emit('player-joined', {
-      playerId,
-      playerName,
-      allPlayers: gameStateManager.getAllPlayersProgress(room),
-    });
+    // Notify other players (only if this is a new player, not a reconnection)
+    if (actualPlayerId === playerId) {
+      socket.to(roomCode).emit('player-joined', {
+        playerId: actualPlayerId,
+        playerName,
+        allPlayers: gameStateManager.getAllPlayersProgress(room),
+      });
+    }
   });
 
   socket.on('create-room', (payload: { difficulty: Difficulty; playerName: string }) => {
@@ -105,8 +146,16 @@ io.on('connection', (socket) => {
   });
 
   socket.on('make-move', (payload: MakeMovePayload) => {
+    // #region agent log
+    const mapEntries = Array.from(socketToPlayer.entries()).map(([k,v])=>({socketId:k,roomCode:v.roomCode,playerId:v.playerId}));
+    safeLog({location:'server.ts:131',message:'make-move received',data:{socketId:socket.id,cellIndex:payload.cellIndex,value:payload.value,mapSize:socketToPlayer.size,mapEntries},timestamp:Date.now(),runId:'run1',hypothesisId:'A'});
+    // #endregion
     const playerInfo = socketToPlayer.get(socket.id);
     if (!playerInfo) {
+      // #region agent log
+      const mapEntries = Array.from(socketToPlayer.entries()).map(([k,v])=>({socketId:k,roomCode:v.roomCode,playerId:v.playerId}));
+      safeLog({location:'server.ts:137',message:'make-move: playerInfo not found',data:{socketId:socket.id,mapSize:socketToPlayer.size,mapEntries},timestamp:Date.now(),runId:'run1',hypothesisId:'A'});
+      // #endregion
       socket.emit('move-error', { message: 'Not in a room' });
       return;
     }
@@ -153,8 +202,14 @@ io.on('connection', (socket) => {
   });
 
   socket.on('disconnect', () => {
+    // #region agent log
+    safeLog({location:'server.ts:155',message:'Socket disconnect',data:{socketId:socket.id},timestamp:Date.now(),runId:'run1',hypothesisId:'B'});
+    // #endregion
     const playerInfo = socketToPlayer.get(socket.id);
     if (playerInfo) {
+      // #region agent log
+      safeLog({location:'server.ts:160',message:'Disconnect: removing player from room',data:{socketId:socket.id,roomCode:playerInfo.roomCode,playerId:playerInfo.playerId},timestamp:Date.now(),runId:'run1',hypothesisId:'B'});
+      // #endregion
       roomManager.leaveRoom(playerInfo.roomCode, playerInfo.playerId);
       socket.leave(playerInfo.roomCode);
       

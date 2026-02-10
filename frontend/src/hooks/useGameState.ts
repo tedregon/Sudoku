@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import type { RoomState, PlayerProgress, Difficulty } from '../types/game.types.js';
 import { socketService, type RoomJoinedEvent, type MoveMadeEvent } from '../services/socketService.js';
 import { getConflicts, getCandidates, isValidMove } from '../utils/sudokuValidator.js';
@@ -9,6 +9,12 @@ export function useGameState() {
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [showCandidates, setShowCandidates] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const roomStateRef = useRef<RoomState | null>(null);
+  
+  // Keep roomStateRef in sync with roomState
+  useEffect(() => {
+    roomStateRef.current = roomState;
+  }, [roomState]);
 
   useEffect(() => {
     const socket = socketService.getSocket();
@@ -24,6 +30,30 @@ export function useGameState() {
         completionTime: playerState.completionTime || null,
       };
     };
+
+    // Handle socket reconnection - rejoin room if we were in one
+    const handleReconnect = () => {
+      const currentRoomState = roomStateRef.current;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGameState.ts:35',message:'Socket connect/reconnect event',data:{socketId:socket.id,isConnected:socket.connected,hasRoomState:!!currentRoomState,roomCode:currentRoomState?.roomCode||null},timestamp:Date.now(),runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
+      if (currentRoomState && currentRoomState.playerState) {
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGameState.ts:40',message:'Rejoining room after reconnect',data:{roomCode:currentRoomState.roomCode,playerName:currentRoomState.playerState.playerName},timestamp:Date.now(),runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
+        // Rejoin the room with the same player name
+        const playerName = currentRoomState.playerState.playerName || 'Player';
+        socketService.joinRoom(currentRoomState.roomCode, playerName);
+      }
+    };
+
+    // Set up reconnect handler
+    socket.on('connect', handleReconnect);
+    
+    // If already connected, check if we need to rejoin
+    if (socket.connected) {
+      handleReconnect();
+    }
 
     const handleRoomCreated = (data: RoomJoinedEvent) => {
       setRoomState({
@@ -126,7 +156,16 @@ export function useGameState() {
     socketService.onPlayerJoined(handlePlayerJoined);
     socketService.onPlayerLeft(handlePlayerLeft);
 
+    // Set up reconnect handler
+    socket.on('connect', handleReconnect);
+    
+    // If already connected, check if we need to rejoin
+    if (socket.connected) {
+      handleReconnect();
+    }
+
     return () => {
+      socket.off('connect', handleReconnect);
       socketService.off('room-created', handleRoomCreated);
       socketService.off('room-joined', handleRoomJoined);
       socketService.off('room-error', handleRoomError);

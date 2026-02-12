@@ -319,26 +319,6 @@ export function useGameState() {
     return highlighted;
   }, [selectedCell, selectedNumber, roomState, getCellValue]);
 
-  const getInvalidCells = useCallback((): number[] => {
-    if (!selectedNumber || !roomState || !roomState.playerState) return [];
-    const invalid: number[] = [];
-    const moves = roomState.playerState.moves instanceof Map
-      ? roomState.playerState.moves
-      : new Map(Object.entries(roomState.playerState.moves || {}).map(([k, v]) => [Number(k), v as number]));
-    for (let i = 0; i < 81; i++) {
-      // Skip pre-filled cells
-      if (roomState.puzzle.grid[i] !== null) continue;
-      // Skip cells that already have the selected number
-      const value = getCellValue(i);
-      if (value === selectedNumber) continue;
-      // Check if this number can be placed here
-      if (!isValidMove(roomState.puzzle.grid, i, selectedNumber, moves)) {
-        invalid.push(i);
-      }
-    }
-    return invalid;
-  }, [selectedNumber, roomState, getCellValue]);
-
   return {
     roomState,
     selectedCell,
@@ -358,6 +338,5 @@ export function useGameState() {
     getCellCandidates,
     getCellConflicts,
     getHighlightedCells,
-    getInvalidCells,
   };
 }

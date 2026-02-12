@@ -39,7 +39,6 @@ function App() {
     getCellCandidates,
     getCellConflicts,
     getHighlightedCells,
-    getInvalidCells,
   } = useGameState();
 
   const [playerName, setPlayerName] = useState(() => {

@@ -2,6 +2,7 @@ import express from 'express';
 import { createServer } from 'http';
 import { Server } from 'socket.io';
 import cors from 'cors';
+import fs from 'fs';
 import { RoomManager } from './services/roomManager.js';
 import { GameStateManager } from './services/gameStateManager.js';
 import type { Difficulty, MakeMovePayload, JoinRoomPayload, PlayerState } from './types/game.types.js';
@@ -53,6 +54,28 @@ io.on('connection', (socket) => {
       return;
     }
 
+    // #region agent log
+    const logPath = '/Users/chip/Documents/GitHub/Sudoku/.cursor/debug.log';
+    try {
+      const logEntry = {
+        location: 'server.ts:43',
+        message: 'join-room called',
+        data: {
+          socketId: socket.id,
+          roomCode,
+          playerName,
+          roomExists: !!room,
+          playersInRoom: room ? Array.from(room.players.keys()) : [],
+          socketToPlayerMappings: Array.from(socketToPlayer.entries()).map(([sid, info]) => ({ socketId: sid, playerId: info.playerId }))
+        },
+        timestamp: Date.now(),
+        runId: 'run1',
+        hypothesisId: 'B'
+      };
+      fs.appendFileSync(logPath, JSON.stringify(logEntry) + '\n');
+    } catch (e) {}
+    // #endregion
+
     // Check if this socket was previously in a room (reconnection scenario)
     // If the player was in this room before, try to find their old playerId
     let actualPlayerId = playerId;
@@ -60,15 +83,60 @@ io.on('connection', (socket) => {
       p => p.playerName === playerName
     );
     
+    // Check if any socket is currently connected to this playerId
+    const isPlayerConnected = Array.from(socketToPlayer.values()).some(
+      info => info.playerId === (existingPlayer?.playerId || '')
+    );
+    
+    // #region agent log
+    try {
+      const logEntry2 = {
+        location: 'server.ts:65',
+        message: 'Reconnection check',
+        data: {
+          socketId: socket.id,
+          existingPlayerFound: !!existingPlayer,
+          existingPlayerId: existingPlayer?.playerId || null,
+          existingPlayerMoves: existingPlayer ? Object.fromEntries(existingPlayer.moves) : null,
+          isPlayerConnected,
+          willReusePlayerId: !!(existingPlayer && !isPlayerConnected)
+        },
+        timestamp: Date.now(),
+        runId: 'run1',
+        hypothesisId: 'B'
+      };
+      fs.appendFileSync(logPath, JSON.stringify(logEntry2) + '\n');
+    } catch (e) {}
+    // #endregion
+    
     // If we find a player with the same name and they're not currently connected,
     // reuse their playerId to preserve their progress
-    if (existingPlayer && !socketToPlayer.has(existingPlayer.playerId)) {
+    if (existingPlayer && !isPlayerConnected) {
       actualPlayerId = existingPlayer.playerId;
       // Update the existing player's state (they're reconnecting)
       room.players.set(actualPlayerId, {
         ...existingPlayer,
         playerName, // Update name in case it changed
       });
+      
+      // #region agent log
+      try {
+        const logEntry3 = {
+          location: 'server.ts:85',
+          message: 'Reusing existing player state',
+          data: {
+            socketId: socket.id,
+            reusedPlayerId: actualPlayerId,
+            preservedMoves: Object.fromEntries(existingPlayer.moves),
+            preservedProgress: existingPlayer.progress
+          },
+          timestamp: Date.now(),
+          runId: 'run1',
+          hypothesisId: 'B'
+        };
+        fs.appendFileSync(logPath, JSON.stringify(logEntry3) + '\n');
+      } catch (e) {}
+      // #endregion
     } else {
       // Join the room (will create new player or return existing)
       const joinedRoom = roomManager.joinRoom(roomCode, actualPlayerId, playerName);
@@ -77,6 +145,24 @@ io.on('connection', (socket) => {
         return;
       }
       room = joinedRoom;
+      
+      // #region agent log
+      try {
+        const logEntry4 = {
+          location: 'server.ts:95',
+          message: 'Created new player (no existing player found)',
+          data: {
+            socketId: socket.id,
+            newPlayerId: actualPlayerId,
+            playerName
+          },
+          timestamp: Date.now(),
+          runId: 'run1',
+          hypothesisId: 'B'
+        };
+        fs.appendFileSync(logPath, JSON.stringify(logEntry4) + '\n');
+      } catch (e) {}
+      // #endregion
     }
 
     socket.join(roomCode);
@@ -203,17 +289,33 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     const playerInfo = socketToPlayer.get(socket.id);
     if (playerInfo) {
-      roomManager.leaveRoom(playerInfo.roomCode, playerInfo.playerId);
+    // #region agent log
+    const logPath = '/Users/chip/Documents/GitHub/Sudoku/.cursor/debug.log';
+      try {
+        const logEntry = {
+          location: 'server.ts:203',
+          message: 'Socket disconnect - preserving player state',
+          data: {
+            socketId: socket.id,
+            roomCode: playerInfo.roomCode,
+            playerId: playerInfo.playerId,
+            action: 'disconnect',
+            preservingState: true
+          },
+          timestamp: Date.now(),
+          runId: 'run1',
+          hypothesisId: 'A'
+        };
+        fs.appendFileSync(logPath, JSON.stringify(logEntry) + '\n');
+      } catch (e) {}
+      // #endregion
+      
+      // DON'T call leaveRoom - preserve player state for reconnection
+      // Just remove the socket mapping so they can reconnect with the same playerId
       socket.leave(playerInfo.roomCode);
       
-      // Notify other players
-      const room = roomManager.getRoom(playerInfo.roomCode);
-      if (room) {
-        socket.to(playerInfo.roomCode).emit('player-left', {
-          playerId: playerInfo.playerId,
-          allPlayers: gameStateManager.getAllPlayersProgress(room),
-        });
-      }
+      // Don't notify other players - they're just disconnected, not left
+      // The player state remains in the room for reconnection
       
       socketToPlayer.delete(socket.id);
     }

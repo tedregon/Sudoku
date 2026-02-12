@@ -40,14 +40,20 @@ export function useGameState() {
     // Handle socket reconnection - rejoin room if we were in one
     const handleReconnect = () => {
       const currentRoomState = roomStateRef.current;
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGameState.ts:41',message:'handleReconnect called',data:{hasRoomState:!!currentRoomState,roomCode:currentRoomState?.roomCode||null,playerName:currentRoomState?.playerState?.playerName||null,playerMovesCount:currentRoomState?.playerState?.moves?(currentRoomState.playerState.moves instanceof Map?currentRoomState.playerState.moves.size:Object.keys(currentRoomState.playerState.moves).length):0},timestamp:Date.now(),runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+      // #endregion
       if (currentRoomState && currentRoomState.playerState) {
         // Rejoin the room with the same player name
         const playerName = currentRoomState.playerState.playerName || 'Player';
+        // #region agent log
+        fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGameState.ts:46',message:'Rejoining room on reconnect',data:{roomCode:currentRoomState.roomCode,playerName},timestamp:Date.now(),runId:'run1',hypothesisId:'C'})}).catch(()=>{});
+        // #endregion
         socketService.joinRoom(currentRoomState.roomCode, playerName);
       }
     };
 
-    // Set up reconnect handler
+    // Set up reconnect handler (only once)
     socket.on('connect', handleReconnect);
     
     // If already connected, check if we need to rejoin
@@ -67,6 +73,9 @@ export function useGameState() {
     };
 
     const handleRoomJoined = (data: RoomJoinedEvent) => {
+      // #region agent log
+      fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGameState.ts:69',message:'handleRoomJoined - restoring state',data:{roomCode:data.roomCode,playerId:data.playerState?.playerId||null,playerMovesCount:data.playerState?.moves?(typeof data.playerState.moves==='object'&&!Array.isArray(data.playerState.moves)?Object.keys(data.playerState.moves).length:0):0,playerProgress:data.playerState?.progress||0},timestamp:Date.now(),runId:'run1',hypothesisId:'D'})}).catch(()=>{});
+      // #endregion
       setRoomState({
         roomCode: data.roomCode,
         puzzle: data.puzzle,
@@ -75,6 +84,8 @@ export function useGameState() {
         allPlayers: data.allPlayers,
       });
       setError(null);
+      // Clear move history on rejoin (can't undo moves from before disconnect)
+      moveHistoryRef.current = [];
     };
 
     const handleRoomError = (error: { message: string }) => {
@@ -180,14 +191,6 @@ export function useGameState() {
     socketService.onPlayerJoined(handlePlayerJoined);
     socketService.onPlayerLeft(handlePlayerLeft);
     socketService.onPlayerNameUpdated(handlePlayerNameUpdated);
-
-    // Set up reconnect handler
-    socket.on('connect', handleReconnect);
-    
-    // If already connected, check if we need to rejoin
-    if (socket.connected) {
-      handleReconnect();
-    }
 
     return () => {
       socket.off('connect', handleReconnect);

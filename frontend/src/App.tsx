@@ -331,7 +331,6 @@ function App() {
                       getCellCandidates={getCellCandidates}
                       getCellConflicts={getCellConflicts}
                       getHighlightedCells={getHighlightedCells}
-                      getInvalidCells={getInvalidCells}
                       onCellClick={selectCell}
                       onKeyDown={handleKeyDown}
                     />

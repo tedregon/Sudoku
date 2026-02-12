@@ -27,7 +27,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
   onKeyDown,
 }) => {
   const highlightedCells = getHighlightedCells();
-  const invalidCells = getInvalidCells();
 
   const renderCell = (cellIndex: number) => {
     const row = Math.floor(cellIndex / 9);
@@ -37,7 +36,6 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     const isPrefilled = puzzle[cellIndex] !== null;
     const isSelected = selectedCell === cellIndex;
     const isHighlighted = highlightedCells.includes(cellIndex);
-    const isInvalid = invalidCells.includes(cellIndex);
     const candidates = showCandidates ? getCellCandidates(cellIndex) : [];
     
     // Check for conflicts (check if this cell's value conflicts with other cells)

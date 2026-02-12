@@ -3,6 +3,11 @@ import type { RoomState, PlayerProgress, Difficulty } from '../types/game.types.
 import { socketService, type RoomJoinedEvent, type MoveMadeEvent } from '../services/socketService.js';
 import { getConflicts, getCandidates } from '../utils/sudokuValidator.js';
 
+interface MoveHistoryEntry {
+  cellIndex: number;
+  previousValue: number | null;
+}
+
 export function useGameState() {
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [selectedCell, setSelectedCell] = useState<number | null>(null);
@@ -10,6 +15,7 @@ export function useGameState() {
   const [showCandidates, setShowCandidates] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const roomStateRef = useRef<RoomState | null>(null);
+  const moveHistoryRef = useRef<MoveHistoryEntry[]>([]);
   
   // Keep roomStateRef in sync with roomState
   useEffect(() => {
@@ -116,6 +122,11 @@ export function useGameState() {
           allPlayers: updatedPlayers,
         };
       });
+      
+      // If this move is from another player, clear our history (we can't undo other players' moves)
+      if (roomStateRef.current?.playerState && roomStateRef.current.playerState.playerId !== data.playerId) {
+        moveHistoryRef.current = [];
+      }
     };
 
     const handleMoveError = (error: { message: string }) => {
@@ -196,10 +207,8 @@ export function useGameState() {
   }, []);
 
   const joinRoom = useCallback((roomCode: string, playerName: string) => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGameState.ts:180',message:'joinRoom called',data:{roomCode,playerName},timestamp:Date.now(),runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-    // #endregion
     socketService.joinRoom(roomCode, playerName);
+    moveHistoryRef.current = [];
   }, []);
 
   const leaveRoom = useCallback(() => {
@@ -207,14 +216,29 @@ export function useGameState() {
     setRoomState(null);
     setSelectedCell(null);
     setSelectedNumber(null);
+    moveHistoryRef.current = [];
   }, []);
 
   const updatePlayerName = useCallback((newName: string) => {
     socketService.updatePlayerName(newName);
   }, []);
 
-  const makeMove = useCallback((cellIndex: number, value: number | null) => {
+  const makeMove = useCallback((cellIndex: number, value: number | null, trackHistory: boolean = true) => {
     if (!roomState?.playerState) return;
+    
+    // Store the previous value before making the move (only if tracking history)
+    if (trackHistory) {
+      const moves = roomState.playerState.moves instanceof Map
+        ? roomState.playerState.moves
+        : new Map(Object.entries(roomState.playerState.moves || {}).map(([k, v]) => [Number(k), v as number]));
+      const previousValue = moves.get(cellIndex) || null;
+      
+      // Only track history if the value is actually changing
+      if (previousValue !== value) {
+        moveHistoryRef.current.push({ cellIndex, previousValue });
+      }
+    }
+    
     socketService.makeMove(cellIndex, value);
   }, [roomState]);
 
@@ -255,6 +279,20 @@ export function useGameState() {
     if (!roomState?.playerState) return;
     makeMove(cellIndex, null);
   }, [roomState, makeMove]);
+
+  const undo = useCallback(() => {
+    if (!roomState?.playerState || moveHistoryRef.current.length === 0) return;
+    
+    const lastMove = moveHistoryRef.current.pop();
+    if (!lastMove) return;
+    
+    // Restore the previous value (don't track history for undo operations)
+    makeMove(lastMove.cellIndex, lastMove.previousValue, false);
+  }, [roomState, makeMove]);
+
+  const canUndo = useCallback((): boolean => {
+    return moveHistoryRef.current.length > 0;
+  }, []);
 
   const getCellValue = useCallback((cellIndex: number): number | null => {
     if (!roomState) return null;
@@ -312,10 +350,6 @@ export function useGameState() {
       }
     }
     
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGameState.ts:315',message:'getHighlightedCells called',data:{selectedCell,selectedNumber,numberToHighlight,highlightedCount:highlighted.length,highlightedCells:highlighted.slice(0,10)},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
-    
     return highlighted;
   }, [selectedCell, selectedNumber, roomState, getCellValue]);
 
@@ -334,6 +368,8 @@ export function useGameState() {
     selectNumber,
     fillCell,
     clearCell,
+    undo,
+    canUndo,
     getCellValue,
     getCellCandidates,
     getCellConflicts,

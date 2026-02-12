@@ -35,6 +35,8 @@ function App() {
     selectNumber,
     fillCell,
     clearCell,
+    undo,
+    canUndo,
     getCellValue,
     getCellCandidates,
     getCellConflicts,
@@ -340,6 +342,8 @@ function App() {
                         hasSelectedCell={selectedCell !== null}
                         onNumberSelect={handleNumberSelect}
                         onClear={handleClear}
+                        onUndo={undo}
+                        canUndo={canUndo()}
                       />
 
                       <div className="app__controls">

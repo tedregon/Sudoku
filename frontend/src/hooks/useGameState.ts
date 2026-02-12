@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { RoomState, PlayerProgress, Difficulty } from '../types/game.types.js';
 import { socketService, type RoomJoinedEvent, type MoveMadeEvent } from '../services/socketService.js';
-import { getConflicts, getCandidates, isValidMove } from '../utils/sudokuValidator.js';
+import { getConflicts, getCandidates } from '../utils/sudokuValidator.js';
 
 export function useGameState() {
   const [roomState, setRoomState] = useState<RoomState | null>(null);

@@ -31,10 +31,11 @@ function App() {
     joinRoom,
     leaveRoom,
     updatePlayerName,
-    selectCell,
     selectNumber,
+    activateClearMode,
     fillCell,
     clearCell,
+    clearModeActive,
     undo,
     canUndo,
     restartPuzzle,
@@ -191,39 +192,29 @@ function App() {
     }
   };
 
+  // Digit-first: tap digit = fill mode; tap "Clear digit" = erase mode. Then tap cells to apply.
   const handleNumberSelect = (number: number | null) => {
     selectNumber(number);
-    if (selectedCell !== null && number !== null) {
-      fillCell(selectedCell, number);
+  };
+
+  const handleCellClick = (cellIndex: number) => {
+    const isPrefilled = roomState?.puzzle.grid[cellIndex] !== null;
+    if (clearModeActive) {
+      if (!isPrefilled) clearCell(cellIndex);
+    } else if (selectedNumber !== null) {
+      if (!isPrefilled) fillCell(cellIndex, selectedNumber);
     }
   };
 
-  const handleClear = () => {
-    if (selectedCell !== null) {
-      clearCell(selectedCell);
-      selectNumber(null);
-    }
+  const handleClearDigit = () => {
+    activateClearMode();
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (selectedCell === null) return;
-
-    // Check if the cell is prefilled (can't edit prefilled cells)
-    const isPrefilled = roomState?.puzzle.grid[selectedCell] !== null;
-    if (isPrefilled) return;
-
-    // Handle number keys 1-9
     const number = parseInt(e.key);
     if (number >= 1 && number <= 9) {
       e.preventDefault();
-      fillCell(selectedCell, number);
       selectNumber(number);
-    }
-    // Handle backspace or delete to clear
-    else if (e.key === 'Backspace' || e.key === 'Delete') {
-      e.preventDefault();
-      clearCell(selectedCell);
-      selectNumber(null);
     }
   };
 
@@ -313,25 +304,27 @@ function App() {
 
               <div className="app__game-layout">
                 <div className="app__main-content">
-                  <div className="app__game-area">
+                  <div
+                    className={`app__game-area${selectedNumber !== null || clearModeActive ? ' app__game-area--digit-active' : ''}`}
+                  >
                     <GameBoard
                       puzzle={roomState.puzzle.grid}
-                      selectedCell={selectedCell}
+                      selectedCell={null}
                       showCandidates={showCandidates}
                       getCellValue={getCellValue}
                       getCellCandidates={getCellCandidates}
                       getCellConflicts={getCellConflicts}
                       getHighlightedCells={getHighlightedCells}
-                      onCellClick={selectCell}
+                      onCellClick={handleCellClick}
                       onKeyDown={handleKeyDown}
                     />
 
                     <div className="app__game-controls">
                       <NumberSelector
                         selectedNumber={selectedNumber}
-                        hasSelectedCell={selectedCell !== null}
                         onNumberSelect={handleNumberSelect}
-                        onClear={handleClear}
+                        onClearDigit={handleClearDigit}
+                        isClearModeActive={clearModeActive}
                         onRestart={restartPuzzle}
                         canRestart={canRestartPuzzle()}
                         onUndo={undo}

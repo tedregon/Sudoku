@@ -12,6 +12,7 @@ export function useGameState() {
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [selectedCell, setSelectedCell] = useState<number | null>(null);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
+  const [clearModeActive, setClearModeActive] = useState(false);
   const [showCandidates, setShowCandidates] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const roomStateRef = useRef<RoomState | null>(null);
@@ -260,29 +261,20 @@ export function useGameState() {
   const selectCell = useCallback((cellIndex: number) => {
     if (!roomState) return;
     setSelectedCell(cellIndex);
-    
-    // If selecting a pre-filled cell, highlight that number
-    let cellValue: number | null = null;
-    // Check if pre-filled
-    if (roomState.puzzle.grid[cellIndex] !== null) {
-      cellValue = roomState.puzzle.grid[cellIndex];
-    } else if (roomState.playerState) {
-      // Check player moves
-      const moves = roomState.playerState.moves instanceof Map
-        ? roomState.playerState.moves
-        : new Map(Object.entries(roomState.playerState.moves || {}).map(([k, v]) => [Number(k), v as number]));
-      cellValue = moves.get(cellIndex) || null;
-    }
-    
-    if (cellValue !== null) {
-      setSelectedNumber(cellValue);
-    } else {
-      setSelectedNumber(null);
-    }
+    // Do not set selectedNumber here - it is only set by the number pad / clear digit
+    // (digit-first mode). Highlighting uses getCellValue(selectedCell) when selectedCell is set.
   }, [roomState]);
 
   const selectNumber = useCallback((number: number | null) => {
     setSelectedNumber(number);
+    if (number !== null) {
+      setClearModeActive(false);
+    }
+  }, []);
+
+  const activateClearMode = useCallback(() => {
+    setSelectedNumber(null);
+    setClearModeActive(true);
   }, []);
 
   const fillCell = useCallback((cellIndex: number, value: number) => {
@@ -350,38 +342,22 @@ export function useGameState() {
   }, [roomState]);
 
   const getHighlightedCells = useCallback((): number[] => {
-    if (!roomState) return [];
-    
-    // Get the value of the selected cell (if any)
-    let numberToHighlight: number | null = null;
-    if (selectedCell !== null) {
-      numberToHighlight = getCellValue(selectedCell);
-    }
-    
-    // If no selected cell or selected cell is empty, use selectedNumber as fallback
-    if (numberToHighlight === null) {
-      numberToHighlight = selectedNumber;
-    }
-    
-    // If still no number to highlight, return empty array
-    if (numberToHighlight === null) return [];
-    
-    // Find all cells that contain the same number
+    if (!roomState || selectedNumber === null) return [];
+    // Highlight cells matching the active digit (only from number pad)
     const highlighted: number[] = [];
     for (let i = 0; i < 81; i++) {
-      const value = getCellValue(i);
-      if (value === numberToHighlight) {
+      if (getCellValue(i) === selectedNumber) {
         highlighted.push(i);
       }
     }
-    
     return highlighted;
-  }, [selectedCell, selectedNumber, roomState, getCellValue]);
+  }, [selectedNumber, roomState, getCellValue]);
 
   return {
     roomState,
     selectedCell,
     selectedNumber,
+    clearModeActive,
     showCandidates,
     error,
     setShowCandidates,
@@ -391,6 +367,7 @@ export function useGameState() {
     updatePlayerName,
     selectCell,
     selectNumber,
+    activateClearMode,
     fillCell,
     clearCell,
     undo,

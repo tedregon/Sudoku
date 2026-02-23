@@ -399,6 +399,11 @@ body {
   margin-bottom: 1.5rem;
 }
 
+/* When a digit is active, cursor indicates tap-to-fill mode */
+.app__game-area--digit-active .game-board {
+  cursor: crosshair;
+}
+
 .app__game-controls {
   display: flex;
   flex-direction: column;
@@ -918,6 +923,39 @@ body {
 }
 
 .number-selector__button--selected {
+  background-color: #4F3BF4;
+  color: #fff;
+}
+
+.number-selector__clear-digit {
+  width: 100%;
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  border: 1px solid #4F3BF4;
+  background-color: #fff;
+  color: #4F3BF4;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  font-family: "Figtree", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-style: normal;
+  margin-top: 0.5rem;
+}
+
+.number-selector__clear-digit:hover:not(:disabled) {
+  background-color: #4F3BF4;
+  color: #fff;
+}
+
+.number-selector__clear-digit:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.number-selector__clear-digit--selected {
   background-color: #4F3BF4;
   color: #fff;
 }

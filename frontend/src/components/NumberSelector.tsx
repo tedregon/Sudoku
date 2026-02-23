@@ -2,9 +2,9 @@ import React from 'react';
 
 interface NumberSelectorProps {
   selectedNumber: number | null;
-  hasSelectedCell: boolean;
   onNumberSelect: (number: number | null) => void;
-  onClear: () => void;
+  onClearDigit: () => void;
+  isClearModeActive: boolean;
   onRestart: () => void;
   canRestart: boolean;
   onUndo: () => void;
@@ -13,9 +13,9 @@ interface NumberSelectorProps {
 
 export const NumberSelector: React.FC<NumberSelectorProps> = ({
   selectedNumber,
-  hasSelectedCell,
   onNumberSelect,
-  onClear,
+  onClearDigit,
+  isClearModeActive,
   onRestart,
   canRestart,
   onUndo,
@@ -31,18 +31,18 @@ export const NumberSelector: React.FC<NumberSelectorProps> = ({
               selectedNumber === num ? 'number-selector__button--selected' : ''
             }`}
             onClick={() => onNumberSelect(num)}
-            disabled={!hasSelectedCell}
           >
             {num}
           </button>
         ))}
       </div>
       <button
-        className="number-selector__clear"
-        onClick={onClear}
-        disabled={!hasSelectedCell}
+        className={`number-selector__clear-digit ${
+          isClearModeActive ? 'number-selector__clear-digit--selected' : ''
+        }`}
+        onClick={onClearDigit}
       >
-        Clear
+        Clear cell
       </button>
       <button
         className="number-selector__restart"

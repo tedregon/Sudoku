@@ -177,6 +177,22 @@ export class GameStateManager {
     return true; // All cells match the solution
   }
 
+  /**
+   * Restart the puzzle for one player only: clear their moves, reset progress and completionTime.
+   * Does not change timerStartTime (timer keeps running).
+   */
+  restartPlayerPuzzle(room: RoomState, playerId: string): boolean {
+    const player = room.players.get(playerId);
+    if (!player) {
+      return false;
+    }
+    player.moves.clear();
+    player.progress = 0;
+    player.completionTime = null;
+    // timerStartTime is left unchanged
+    return true;
+  }
+
   getPlayerState(room: RoomState, playerId: string): PlayerState | undefined {
     return room.players.get(playerId);
   }

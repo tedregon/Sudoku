@@ -37,6 +37,8 @@ function App() {
     clearCell,
     undo,
     canUndo,
+    restartPuzzle,
+    canRestartPuzzle,
     getCellValue,
     getCellCandidates,
     getCellConflicts,
@@ -55,13 +57,7 @@ function App() {
 
   // Check URL parameters for room code and auto-join (runs first, before auto-create)
   useEffect(() => {
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:59',message:'URL check useEffect running',data:{hasCheckedUrlParams:hasCheckedUrlParams.current,hasRoomState:!!roomState,url:window.location.href,search:window.location.search},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
     if (hasCheckedUrlParams.current || roomState) {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:61',message:'URL check early return',data:{reason:hasCheckedUrlParams.current?'hasCheckedUrlParams':'hasRoomState'},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-      // #endregion
       return;
     }
 
@@ -69,9 +65,6 @@ function App() {
     const roomCode = urlParams.get('room');
     hasUrlRoomCode.current = !!roomCode;
     hasCheckedUrlParams.current = true;
-    // #region agent log
-    fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:68',message:'URL params parsed',data:{roomCode:roomCode||null,hasRoomCode:!!roomCode,hasUrlRoomCode:hasUrlRoomCode.current},timestamp:Date.now(),runId:'run1',hypothesisId:'A'})}).catch(()=>{});
-    // #endregion
 
     if (roomCode) {
       // Clear URL params after reading them
@@ -79,9 +72,6 @@ function App() {
       
       // Use joinRoom which now handles waiting for socket connection internally
       // This is more robust than manually checking socket state
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'App.tsx:72',message:'Calling joinRoom from URL (will wait for socket)',data:{roomCode,playerName},timestamp:Date.now(),runId:'run1',hypothesisId:'B'})}).catch(()=>{});
-      // #endregion
       joinRoom(roomCode, playerName);
     }
   }, [joinRoom, playerName, roomState]);
@@ -342,6 +332,8 @@ function App() {
                         hasSelectedCell={selectedCell !== null}
                         onNumberSelect={handleNumberSelect}
                         onClear={handleClear}
+                        onRestart={restartPuzzle}
+                        canRestart={canRestartPuzzle()}
                         onUndo={undo}
                         canUndo={canUndo()}
                       />

@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import type { RoomState, PlayerProgress, Difficulty } from '../types/game.types.js';
-import { socketService, type RoomJoinedEvent, type MoveMadeEvent } from '../services/socketService.js';
+import { socketService, type RoomJoinedEvent, type MoveMadeEvent, type PuzzleRestartedEvent } from '../services/socketService.js';
 import { getConflicts, getCandidates } from '../utils/sudokuValidator.js';
 
 interface MoveHistoryEntry {
@@ -40,15 +40,9 @@ export function useGameState() {
     // Handle socket reconnection - rejoin room if we were in one
     const handleReconnect = () => {
       const currentRoomState = roomStateRef.current;
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGameState.ts:41',message:'handleReconnect called',data:{hasRoomState:!!currentRoomState,roomCode:currentRoomState?.roomCode||null,playerName:currentRoomState?.playerState?.playerName||null,playerMovesCount:currentRoomState?.playerState?.moves?(currentRoomState.playerState.moves instanceof Map?currentRoomState.playerState.moves.size:Object.keys(currentRoomState.playerState.moves).length):0},timestamp:Date.now(),runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-      // #endregion
       if (currentRoomState && currentRoomState.playerState) {
         // Rejoin the room with the same player name
         const playerName = currentRoomState.playerState.playerName || 'Player';
-        // #region agent log
-        fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGameState.ts:46',message:'Rejoining room on reconnect',data:{roomCode:currentRoomState.roomCode,playerName},timestamp:Date.now(),runId:'run1',hypothesisId:'C'})}).catch(()=>{});
-        // #endregion
         socketService.joinRoom(currentRoomState.roomCode, playerName);
       }
     };
@@ -73,9 +67,6 @@ export function useGameState() {
     };
 
     const handleRoomJoined = (data: RoomJoinedEvent) => {
-      // #region agent log
-      fetch('http://127.0.0.1:7242/ingest/c96d2929-a514-4266-ae0e-7555c7469794',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'useGameState.ts:69',message:'handleRoomJoined - restoring state',data:{roomCode:data.roomCode,playerId:data.playerState?.playerId||null,playerMovesCount:data.playerState?.moves?(typeof data.playerState.moves==='object'&&!Array.isArray(data.playerState.moves)?Object.keys(data.playerState.moves).length:0):0,playerProgress:data.playerState?.progress||0},timestamp:Date.now(),runId:'run1',hypothesisId:'D'})}).catch(()=>{});
-      // #endregion
       setRoomState({
         roomCode: data.roomCode,
         puzzle: data.puzzle,
@@ -144,6 +135,25 @@ export function useGameState() {
       setError(error.message);
     };
 
+    const handlePuzzleRestarted = (data: PuzzleRestartedEvent) => {
+      const isOurRestart = roomStateRef.current?.playerState?.playerId === data.playerId;
+      if (isOurRestart) {
+        moveHistoryRef.current = [];
+      }
+      setRoomState((prev) => {
+        if (!prev) return null;
+        const updatedPlayerState =
+          prev.playerState?.playerId === data.playerId
+            ? convertPlayerState(data.playerState)
+            : prev.playerState;
+        return {
+          ...prev,
+          playerState: updatedPlayerState,
+          allPlayers: data.allPlayers,
+        };
+      });
+    };
+
     const handlePlayerJoined = (data: { playerId: string; playerName: string; allPlayers: PlayerProgress[] }) => {
       setRoomState((prev) => {
         if (!prev) return null;
@@ -188,6 +198,7 @@ export function useGameState() {
     socketService.onRoomError(handleRoomError);
     socketService.onMoveMade(handleMoveMade);
     socketService.onMoveError(handleMoveError);
+    socketService.onPuzzleRestarted(handlePuzzleRestarted);
     socketService.onPlayerJoined(handlePlayerJoined);
     socketService.onPlayerLeft(handlePlayerLeft);
     socketService.onPlayerNameUpdated(handlePlayerNameUpdated);
@@ -199,6 +210,7 @@ export function useGameState() {
       socketService.off('room-error', handleRoomError);
       socketService.off('move-made', handleMoveMade);
       socketService.off('move-error', handleMoveError);
+      socketService.off('puzzle-restarted', handlePuzzleRestarted);
       socketService.off('player-joined', handlePlayerJoined);
       socketService.off('player-left', handlePlayerLeft);
       socketService.off('player-name-updated', handlePlayerNameUpdated);
@@ -297,6 +309,16 @@ export function useGameState() {
     return moveHistoryRef.current.length > 0;
   }, []);
 
+  const restartPuzzle = useCallback(() => {
+    if (!roomState?.playerState) return;
+    moveHistoryRef.current = [];
+    socketService.restartPuzzle();
+  }, [roomState]);
+
+  const canRestartPuzzle = useCallback((): boolean => {
+    return !!roomState?.playerState;
+  }, [roomState]);
+
   const getCellValue = useCallback((cellIndex: number): number | null => {
     if (!roomState) return null;
     // Check if pre-filled
@@ -373,6 +395,8 @@ export function useGameState() {
     clearCell,
     undo,
     canUndo,
+    restartPuzzle,
+    canRestartPuzzle,
     getCellValue,
     getCellCandidates,
     getCellConflicts,

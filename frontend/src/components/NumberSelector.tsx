@@ -5,6 +5,8 @@ interface NumberSelectorProps {
   hasSelectedCell: boolean;
   onNumberSelect: (number: number | null) => void;
   onClear: () => void;
+  onRestart: () => void;
+  canRestart: boolean;
   onUndo: () => void;
   canUndo: boolean;
 }
@@ -14,6 +16,8 @@ export const NumberSelector: React.FC<NumberSelectorProps> = ({
   hasSelectedCell,
   onNumberSelect,
   onClear,
+  onRestart,
+  canRestart,
   onUndo,
   canUndo,
 }) => {
@@ -39,6 +43,13 @@ export const NumberSelector: React.FC<NumberSelectorProps> = ({
         disabled={!hasSelectedCell}
       >
         Clear
+      </button>
+      <button
+        className="number-selector__restart"
+        onClick={onRestart}
+        disabled={!canRestart}
+      >
+        Restart
       </button>
       <button
         className="number-selector__undo"

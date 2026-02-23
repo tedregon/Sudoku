@@ -949,6 +949,34 @@ body {
   cursor: not-allowed;
 }
 
+.number-selector__restart {
+  width: 100%;
+  padding: 0.75rem 2rem;
+  font-size: 1rem;
+  border: 1px solid #ff9800;
+  background-color: #fff;
+  color: #ff9800;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  user-select: none;
+  font-family: "Figtree", sans-serif;
+  font-optical-sizing: auto;
+  font-weight: 600;
+  font-style: normal;
+  margin-top: 0.5rem;
+}
+
+.number-selector__restart:hover:not(:disabled) {
+  background-color: #ff9800;
+  color: #fff;
+}
+
+.number-selector__restart:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .number-selector__undo {
   width: 100%;
   padding: 0.75rem 2rem;

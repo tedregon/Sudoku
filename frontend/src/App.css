@@ -259,7 +259,7 @@ body {
 }
 
 .app__container--game {
-  padding: 1.5rem 2rem;
+  padding: 1rem 2rem;
   display: flex;
   gap: 2rem;
   align-items: flex-start;

@@ -220,37 +220,62 @@ function App() {
 
   return (
     <div className="app">
-      {/* App Header - Outside app_container */}
-      <header className="app-header">
-        <div className="app-header__content">
-          <h1 className="app-header__title">Sudoku Rivals</h1>
-          <div className="app-header__difficulties">
-            <span className="app-header__difficulty-label">Difficulty</span>
-            <div className="app-header__difficulty-buttons">
+      {/* Left navbar */}
+      <nav className="app__nav">
+        <div className="app__nav-content">
+          <div className="app__nav-brand">
+            <h1 className="app__nav-title">Sudoku Rivals</h1>
+            <p className="app__nav-footer">
+              by{' '}
+              <a
+                href="https://chipdoes.app"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="app__nav-footer-link"
+              >
+                chipdoes.app
+              </a>
+            </p>
+          </div>
+          <div className="app__nav-difficulties">
+            <label htmlFor="difficulty-select" className="app__nav-difficulty-label">
+              Difficulty
+            </label>
+            <select
+              id="difficulty-select"
+              className="app__nav-difficulty-select"
+              value={roomState?.difficulty ?? 'very-hard'}
+              onChange={(e) => handleDifficultyClick(e.target.value as Difficulty)}
+            >
               {DIFFICULTIES.map((difficulty) => (
-                <button
-                  key={difficulty.value}
-                  className={`app-header__difficulty-btn ${
-                    roomState?.difficulty === difficulty.value
-                      ? 'app-header__difficulty-btn--active'
-                      : ''
-                  }`}
-                  onClick={() => handleDifficultyClick(difficulty.value)}
-                >
+                <option key={difficulty.value} value={difficulty.value}>
                   {difficulty.label}
-                </button>
+                </option>
               ))}
-            </div>
+            </select>
           </div>
           <button
             onClick={() => setShowJoinModal(true)}
-            className="app-header__join-btn"
+            className="app__nav-join-btn"
           >
             Join Room
           </button>
+          {roomState && roomState.playerState && (
+            <div className="app__nav-players">
+              <PlayerList
+                players={roomState.allPlayers}
+                currentPlayerId={roomState.playerState?.playerId || null}
+                onUpdatePlayerName={(newName) => {
+                  setPlayerName(newName);
+                  updatePlayerName(newName);
+                }}
+              />
+            </div>
+          )}
         </div>
-      </header>
+      </nav>
 
+      <div className="app__main">
       {/* Join Room Modal */}
       <JoinRoomModal
         isOpen={showJoinModal}
@@ -348,33 +373,8 @@ function App() {
             </>
           )}
         </div>
-
-        {roomState && roomState.playerState && (
-          <div className="app__sidebar">
-            <PlayerList
-              players={roomState.allPlayers}
-              currentPlayerId={roomState.playerState?.playerId || null}
-              onUpdatePlayerName={(newName) => {
-                setPlayerName(newName);
-                updatePlayerName(newName);
-              }}
-            />
-          </div>
-        )}
       </div>
-
-      {/* Footer */}
-      <footer className="app__footer">
-        Created by{' '}
-        <a
-          href="https://chipdoes.app"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="app__footer-link"
-        >
-          chipdoes.app
-        </a>
-      </footer>
+      </div>
     </div>
   );
 }

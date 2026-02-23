@@ -20,110 +20,92 @@ body {
 .app {
   min-height: 100vh;
   background: #F5F5F5;
-  padding-top: 76px; /* Space for fixed header + 8px margin */
   display: flex;
-  flex-direction: column;
-  justify-content: flex-start;
-  align-items: center;
+  flex-direction: row;
   font-family: "Figtree", sans-serif;
   font-optical-sizing: auto;
 }
 
-/* App Header - Outside container */
-.app-header {
-  position: fixed;
-  top: 0;
-  left: 0;
-  right: 0;
-  margin: 0 auto 0;
+/* Left navbar */
+.app__nav {
+  max-width: 204px;
+  width: 100%;
+  flex-shrink: 0;
   background-color: #fff;
-  border-bottom: 1px solid #e0e0e0;
-  z-index: 100;
-  padding: 1rem 2rem;
-  max-width: 100vw;
-}
-
-.app-header__content {
-  max-width: 1024px;
-  margin: 0 auto;
-  padding: 0 24px;
+  border-right: 1px solid #e0e0e0;
+  padding: 1.5rem 1.25rem;
+  min-height: 100vh;
   display: flex;
-  align-items: center;
-  gap: 2rem;
-  flex-wrap: wrap;
+  flex-direction: column;
 }
 
-.app-header__title {
+.app__nav-content {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 1.5rem;
+}
+
+.app__nav-brand {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.app__nav-title {
   margin: 0;
   font-size: 1.5rem;
   font-weight: 700;
-  flex-shrink: 0;
   letter-spacing: -0.03em;
   color: #061222;
-  font-family: "Figtree";
+  font-family: "Figtree", sans-serif;
   font-optical-sizing: auto;
 }
 
-.app-header__difficulties {
+.app__nav-difficulties {
   display: flex;
-  flex-wrap: wrap;
-  flex: 1;
-  margin: 0 auto;
-  width: 100%;
-  justify-content: center;
-  align-items: center;
-  gap: 1rem;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.5rem;
 }
 
-.app-header__difficulty-label {
+.app__nav-difficulty-label {
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: -0.02em;
   color: #061222;
-  margin-right: 0.5rem;
-  
 }
 
-.app-header__difficulty-buttons {
-  display: flex;
-  gap: 0;
-  align-items: center;
-  background-color: #E4EDF6;
-  border-radius: 8px;
-}
-
-.app-header__difficulty-btn {
+.app__nav-difficulty-select {
+  width: 100%;
   padding: 0.75rem 1rem;
   font-size: 1rem;
-  color: #061222;
-  cursor: pointer;
-  align-items: center;
-  border: 0;
-  background-color: transparent;
-  border-radius: 8px;
-  transition: 0s;
   font-family: "Figtree", sans-serif;
   font-optical-sizing: auto;
   font-weight: 550;
-  font-style: normal;
-}
-
-.app-header__difficulty-btn:hover {
-  /* Incorrect CSS: background-color does not support gradients. Use background instead. */
-  background: #FFA200;
-  border-radius: 8px;
   color: #061222;
-  transition: 0s;
-}
-
-.app-header__difficulty-btn--active {
-  background: #FFA200;
+  background-color: #E4EDF6;
+  border: 1px solid #E4EDF6;
   border-radius: 8px;
-  color: #061222;
-  transition: 0s;
+  cursor: pointer;
+  appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 12 12'%3E%3Cpath fill='%23061222' d='M6 8L1 3h10z'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 1rem center;
+  padding-right: 2.5rem;
 }
 
-.app-header__join-btn {
+.app__nav-difficulty-select:hover {
+  background-color: #dae4f0;
+}
+
+.app__nav-difficulty-select:focus {
+  outline: none;
+  border-color: #4F3BF4;
+}
+
+.app__nav-join-btn {
   padding: 0.75rem 1.5rem;
   font-size: 1rem;
   font-weight: 600;
@@ -134,11 +116,42 @@ body {
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.2s ease;
-  flex-shrink: 0;
+  margin-bottom: auto;
 }
 
-.app-header__join-btn:hover {
+.app__nav-join-btn:hover {
   background-color: #4331D1;
+}
+
+.app__nav-players {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.app__nav-footer {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #061222;
+}
+
+.app__nav-footer-link {
+  color: #4331D1;
+  text-decoration: none;
+  font-weight: 600;
+  transition: opacity 0.2s ease;
+}
+
+.app__nav-footer-link:hover {
+  opacity: 0.8;
+  text-decoration: underline;
+}
+
+.app__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
 
 /* Subheader - Inside container */
@@ -167,7 +180,7 @@ body {
 }
 
 .app__subheader-code {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Roboto Mono', monospace;
   font-weight: 700;
   font-size: 1.125rem;
   color: #4F3BF4;
@@ -241,8 +254,8 @@ body {
   border-left: 1px solid #e0e0e0;
   border-right: 1px solid #e0e0e0;
   border-radius: 0;
-  flex: 0 1 auto;
-  width: 100vw;
+  flex: 1 1 auto;
+  width: 100%;
 }
 
 .app__container--game {
@@ -355,10 +368,6 @@ body {
   width: 100%;
 }
 
-.app__sidebar {
-  flex: 0 0 200px;
-}
-
 .app__completion-message {
   display: flex;
   align-items: center;
@@ -396,7 +405,6 @@ body {
   align-items: flex-start;
   justify-content: center;
   width: 100%;
-  margin-bottom: 1.5rem;
 }
 
 /* When a digit is active, cursor indicates tap-to-fill mode */
@@ -445,28 +453,39 @@ body {
 
 @media (max-width: 768px) {
   .app {
-    padding-top: 128px; /* More space for header on mobile + 8px margin */
+    flex-direction: column;
     padding-left: 1rem;
     padding-right: 1rem;
   }
 
-  .app-header {
-    padding: 0.75rem 1rem;
+  .app__nav {
+    max-width: none;
+    width: 100%;
+    min-height: 0;
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 1rem;
   }
 
-  .app-header__content {
-    flex-direction: column;
-    align-items: flex-start;
+  .app__nav-content {
+    flex: none;
+    flex-direction: row;
+    flex-wrap: wrap;
     gap: 1rem;
+    align-items: center;
   }
 
-  .app-header__difficulties {
-    width: 100%;
-    justify-content: flex-start;
+  .app__nav-brand {
+    flex: 1 1 100%;
   }
 
-  .app-header__join-btn {
-    width: 100%;
+  .app__nav-difficulties {
+    flex: 1;
+    min-width: 0;
+  }
+
+  .app__nav-join-btn {
+    margin-top: 0;
   }
 
   .app__subheader {
@@ -491,11 +510,6 @@ body {
     flex-direction: column;
   }
 
-  .app__sidebar {
-    flex: 1;
-    width: 100%;
-  }
-
   .app__game-area {
     flex-direction: column;
     align-items: center;
@@ -507,33 +521,6 @@ body {
   }
 }
 
-/* Footer */
-.app__footer {
-  width: 100%;
-  background-color: #fff;
-  text-align: center;
-  padding: 2rem;
-  color: #061222;
-  font-size: 0.9rem;
-  flex-shrink: 0;
-  border-top: 1px solid #e0e0e0;
-}
-
-.app__footer-link {
-  color: #4331D1;
-  text-decoration: none;
-  font-weight: 600;
-  transition: opacity 0.2s ease;
-}
-
-.app__footer-link:hover {
-  opacity: 0.8;
-  text-decoration: underline;
-}
-
-.app__footer-link:visited {
-  color: rgba(255, 255, 255, 1);
-}
 
 /* Timer Component */
 .timer {
@@ -594,7 +581,7 @@ body {
 }
 
 .room-code-input__text-input--code {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Roboto Mono', monospace;
   font-size: 1.25rem;
   font-weight: 600;
   letter-spacing: 0.2em;
@@ -635,7 +622,7 @@ body {
 }
 
 .room-code-input__code {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Roboto Mono', monospace;
   font-size: 2rem;
   font-weight: 700;
   letter-spacing: 0.2em;
@@ -753,7 +740,7 @@ body {
 }
 
 .join-room-modal__input--code {
-  font-family: 'Figtree', sans-serif;
+  font-family: 'Roboto Mono', monospace;
   font-size: 1rem;
   font-weight: 500;
   text-align: left;
@@ -884,6 +871,12 @@ body {
   gap: 1rem;
 }
 
+.number-selector__digit-group {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
 .number-selector__grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
@@ -929,7 +922,11 @@ body {
 
 .number-selector__clear-digit {
   width: 100%;
-  padding: 0.75rem 2rem;
+  height: 60px;
+  padding: 0 1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-size: 1rem;
   border: 1px solid #4F3BF4;
   background-color: #fff;
@@ -942,7 +939,6 @@ body {
   font-optical-sizing: auto;
   font-weight: 600;
   font-style: normal;
-  margin-top: 0.5rem;
 }
 
 .number-selector__clear-digit:hover:not(:disabled) {
@@ -1076,7 +1072,7 @@ body {
   justify-content: space-between;
   align-items: center;
   margin-bottom: 0.5rem;
-  gap: 1rem;
+  gap: 8px;
 }
 
 .player-list__name-container {

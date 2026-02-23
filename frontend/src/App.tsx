@@ -52,6 +52,7 @@ function App() {
   });
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showCopyNotification, setShowCopyNotification] = useState(false);
+  const [cellDigitFontSize, setCellDigitFontSize] = useState(1.75); // rem
   const hasAutoCreated = useRef(false);
   const hasCheckedUrlParams = useRef(false);
   const hasUrlRoomCode = useRef(false);
@@ -142,6 +143,19 @@ function App() {
     }
   }, [selectedCell]);
 
+  const handleGoHome = () => {
+    window.history.replaceState({}, '', window.location.pathname);
+    const difficulty = roomState?.difficulty ?? 'very-hard';
+    if (roomState) {
+      leaveRoom();
+      setTimeout(() => {
+        createRoom(difficulty, playerName);
+      }, 100);
+    } else {
+      createRoom(difficulty, playerName);
+    }
+  };
+
   const handleDifficultyClick = (difficulty: Difficulty) => {
     // Leave current room if in one, then create new room
     if (roomState) {
@@ -219,12 +233,21 @@ function App() {
   };
 
   return (
-    <div className="app">
+    <div
+      className="app"
+      style={{ ['--cell-digit-font-size' as string]: `${cellDigitFontSize}rem` }}
+    >
       {/* Left navbar */}
       <nav className="app__nav">
         <div className="app__nav-content">
           <div className="app__nav-brand">
-            <h1 className="app__nav-title">Sudoku Rivals</h1>
+            <button
+              type="button"
+              className="app__nav-title app__nav-title--link"
+              onClick={handleGoHome}
+            >
+              SudokuRivals
+            </button>
             <p className="app__nav-footer">
               by{' '}
               <a
@@ -365,6 +388,24 @@ function App() {
                           />
                           <span>Show candidates</span>
                         </label>
+                        <div className="app__font-size-buttons">
+                          <button
+                            type="button"
+                            className="app__font-size-btn"
+                            onClick={() => setCellDigitFontSize((s) => Math.max(1, s - 0.25))}
+                            title="Decrease cell digit size"
+                          >
+                            A-
+                          </button>
+                          <button
+                            type="button"
+                            className="app__font-size-btn"
+                            onClick={() => setCellDigitFontSize((s) => Math.min(2.5, s + 0.25))}
+                            title="Increase cell digit size"
+                          >
+                            A+
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>

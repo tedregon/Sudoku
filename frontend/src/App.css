@@ -167,8 +167,8 @@ body {
   display: flex;
   align-items: center;
   gap: 1rem;
-  padding-bottom: 1rem;
-  flex-wrap: wrap;
+  padding-bottom: 2rem;
+  flex-wrap: nowrap;
 }
 
 .app__subheader-title {
@@ -179,15 +179,15 @@ body {
   flex-shrink: 0;
 }
 
-.app__subheader-room-code {
-  font-size: 1rem;
+.app__subheader-controls {
   flex: 1;
   display: flex;
+  flex-wrap: nowrap;
   align-items: center;
   gap: 0.75rem;
 }
 
-.app__subheader-code {
+.app__subheader-code-text {
   font-family: 'Roboto Mono', monospace;
   font-weight: 700;
   font-size: 1.125rem;
@@ -195,22 +195,58 @@ body {
   letter-spacing: 0.05em;
 }
 
-.app__button--copy-code {
+.app__copy-code-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.5rem;
+  border: none;
+  background: none;
+  cursor: pointer;
+  border-radius: 6px;
+  transition: background-color 0.2s ease;
+  font: inherit;
+}
+
+.app__copy-code-trigger:hover {
+  background-color: rgba(79, 59, 244, 0.08);
+}
+
+.app__copy-icon {
+  width: 20px;
+  height: 20px;
+  display: block;
+}
+
+.app__subheader-messages {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.app__button--restart {
   background-color: #fff;
-  color: #4F3BF4;
+  color: #ff9800;
   padding: 0.5rem 0.75rem;
   font-size: 0.875rem;
-  border: 1px solid #4F3BF4;
+  border: 1px solid #ff9800;
   border-radius: 6px;
   cursor: pointer;
   transition: 0s;
   font-weight: 700;
-  font-style: normal;
+  font-family: "Figtree", sans-serif;
   min-width: 100px;
 }
 
-.app__button--copy-code:hover {
-  border: 1px solid #4331D1;
+.app__button--restart:hover:not(:disabled) {
+  background-color: #ff9800;
+  color: #fff;
+}
+
+.app__button--restart:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
 }
 
 .app__copy-code-wrapper {
@@ -220,10 +256,10 @@ body {
 
 .app__notification {
   position: absolute;
-  bottom: 100%;
+  top: 100%;
   left: 50%;
   transform: translateX(-50%);
-  margin-bottom: 0.5rem;
+  margin-top: 0.5rem;
   background-color: #05AB0D;
   color: #fff;
   padding: 0.5rem 1rem;
@@ -231,22 +267,22 @@ body {
   z-index: 1000;
   white-space: nowrap;
   font-size: 0.875rem;
-  animation: slideUp 0.3s ease-out;
+  animation: slideDown 0.3s ease-out;
 }
 
 .app__notification::after {
   content: '';
   position: absolute;
-  top: 100%;
+  bottom: 100%;
   left: 50%;
   transform: translateX(-50%);
   border: 6px solid transparent;
-  border-top-color: #05AB0D;
+  border-bottom-color: #05AB0D;
 }
 
-@keyframes slideUp {
+@keyframes slideDown {
   from {
-    transform: translateX(-50%) translateY(+10px);
+    transform: translateX(-50%) translateY(-10px);
     opacity: 0;
   }
   to {
@@ -377,20 +413,21 @@ body {
 }
 
 .app__completion-message {
+  width: 100%;
+  height: 35px;
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 2rem;
-  padding: 1rem;
+  gap: 1rem;
+  padding: 0 1rem;
   background: linear-gradient(180deg, #4caf50 0%, #45a049 100%);
   color: #fff;
-  border-radius: 8px;
-  margin-bottom: 1.5rem;
+  border-radius: 4px;
 }
 
 .app__completion-title {
   margin: 0;
-  font-size: 1.5rem;
+  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -404,7 +441,7 @@ body {
 
 .app__completion-time .timer__display {
   color: #fff;
-  font-size: 1.5rem;
+  font-size: 1rem;
 }
 
 .app__game-area {
@@ -528,7 +565,7 @@ body {
     gap: 1rem;
   }
 
-  .app__subheader-room-code {
+  .app__subheader-controls {
     width: 100%;
   }
 
@@ -1013,34 +1050,6 @@ body {
 }
 
 .number-selector__clear:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.number-selector__restart {
-  width: 100%;
-  padding: 0.75rem 2rem;
-  font-size: 1rem;
-  border: 1px solid #ff9800;
-  background-color: #fff;
-  color: #ff9800;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: all 0.2s ease;
-  user-select: none;
-  font-family: "Figtree", sans-serif;
-  font-optical-sizing: auto;
-  font-weight: 600;
-  font-style: normal;
-  margin-top: 0.5rem;
-}
-
-.number-selector__restart:hover:not(:disabled) {
-  background-color: #ff9800;
-  color: #fff;
-}
-
-.number-selector__restart:disabled {
   opacity: 0.5;
   cursor: not-allowed;
 }

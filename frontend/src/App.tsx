@@ -8,6 +8,7 @@ import { JoinRoomModal } from './components/JoinRoomModal';
 import { PlayerList } from './components/PlayerList';
 import { Timer } from './components/Timer';
 import type { Difficulty } from './types/game.types';
+import copyIcon from './assets/img/copy.svg';
 import './App.css';
 
 const DIFFICULTIES: Array<{ value: Difficulty; label: string }> = [
@@ -315,15 +316,16 @@ function App() {
               <h2 className="app__subheader-title">
                 Room
               </h2>
-              <div className="app__subheader-room-code">
-                <span className="app__subheader-code">{roomState.roomCode}</span>
+              <div className="app__subheader-controls">
                 <div className="app__copy-code-wrapper">
                   <button
+                    type="button"
                     onClick={handleCopyRoomCode}
-                    className="app__button app__button--copy-code"
+                    className="app__copy-code-trigger"
                     title="Copy room code"
                   >
-                    Copy Code
+                    <span className="app__subheader-code-text">{roomState.roomCode}</span>
+                    <img src={copyIcon} alt="" className="app__copy-icon" aria-hidden />
                   </button>
                   {showCopyNotification && (
                     <div className="app__notification">
@@ -331,25 +333,34 @@ function App() {
                     </div>
                   )}
                 </div>
+                <button
+                  onClick={restartPuzzle}
+                  disabled={!canRestartPuzzle()}
+                  className="app__button app__button--restart"
+                  title="Restart puzzle"
+                >
+                  Restart
+                </button>
+              </div>
+              <div className="app__subheader-messages">
                 {error && <div className="app__error">{error}</div>}
+                {roomState.playerState?.completionTime != null && (
+                  <div className="app__completion-message">
+                    <h2 className="app__completion-title">🎉 You Finished in</h2>
+                    <div className="app__completion-time">
+                      <Timer
+                        timerStartTime={roomState.playerState.timerStartTime}
+                        completionTime={roomState.playerState.completionTime}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           )}
 
           {roomState && roomState.playerState && (
             <>
-              {roomState.playerState.completionTime !== null && (
-                <div className="app__completion-message">
-                  <h2 className="app__completion-title">🎉 You Finished!</h2>
-                  <div className="app__completion-time">
-                    Your time: <Timer 
-                      timerStartTime={roomState.playerState.timerStartTime}
-                      completionTime={roomState.playerState.completionTime}
-                    />
-                  </div>
-                </div>
-              )}
-
               <div className="app__game-layout">
                 <div className="app__main-content">
                   <div
@@ -373,8 +384,6 @@ function App() {
                         onNumberSelect={handleNumberSelect}
                         onClearDigit={handleClearDigit}
                         isClearModeActive={clearModeActive}
-                        onRestart={restartPuzzle}
-                        canRestart={canRestartPuzzle()}
                         onUndo={undo}
                         canUndo={canUndo()}
                       />

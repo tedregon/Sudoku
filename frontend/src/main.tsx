@@ -4,6 +4,7 @@ import App from './App';
 
 // #region agent log
 (function () {
+  type ManifestResult = { ok: boolean; status: number; display: string | null; start_url: string | null; icons: Array<{ src: string; sizes?: string }> | null };
   const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const isIPad = /iPad/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   const standalone = typeof (navigator as { standalone?: boolean }).standalone !== 'undefined' ? (navigator as { standalone?: boolean }).standalone : null;
@@ -14,9 +15,10 @@ import App from './App';
   const appleTouchLink = document.querySelector<HTMLLinkElement>('link[rel="apple-touch-icon"]');
   const appleTouchHref = appleTouchLink ? (appleTouchLink.getAttribute('href') || '') : null;
   const appleTouchResolved = appleTouchHref ? new URL(appleTouchHref, origin).href : null;
+  const fallback: ManifestResult = { ok: false, status: 0, display: null, start_url: null, icons: null };
   fetch('/manifest.webmanifest')
-    .then(r => r.ok ? r.json().then(m => ({ ok: true, status: r.status, display: m.display, start_url: m.start_url, icons: m.icons })) : { ok: false, status: r.status, display: null, start_url: null, icons: null })
-    .catch(() => ({ ok: false, status: 0, display: null, start_url: null, icons: null }))
+    .then(r => r.ok ? r.json().then((m: { display?: string; start_url?: string; icons?: Array<{ src: string; sizes?: string }> }) => ({ ok: true, status: r.status, display: m.display ?? null, start_url: m.start_url ?? null, icons: m.icons ?? null } as ManifestResult)) : Promise.resolve({ ok: false, status: r.status, display: null, start_url: null, icons: null } as ManifestResult))
+    .catch(() => fallback)
     .then(manifest => {
       const firstIconSrc = manifest.icons && manifest.icons[0] ? manifest.icons[0].src : null;
       const firstIconResolved = firstIconSrc ? new URL(firstIconSrc, origin).href : null;

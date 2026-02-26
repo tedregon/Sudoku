@@ -7,6 +7,7 @@ interface NumberSelectorProps {
   isClearModeActive: boolean;
   onUndo: () => void;
   canUndo: boolean;
+  completedDigits?: number[];
 }
 
 export const NumberSelector: React.FC<NumberSelectorProps> = ({
@@ -16,6 +17,7 @@ export const NumberSelector: React.FC<NumberSelectorProps> = ({
   isClearModeActive,
   onUndo,
   canUndo,
+  completedDigits = [],
 }) => {
   return (
     <div className="number-selector">
@@ -26,7 +28,7 @@ export const NumberSelector: React.FC<NumberSelectorProps> = ({
               key={num}
               className={`number-selector__button ${
                 selectedNumber === num ? 'number-selector__button--selected' : ''
-              }`}
+              } ${completedDigits.includes(num) ? 'number-selector__button--complete' : ''}`}
               onClick={() => onNumberSelect(num)}
             >
               {num}

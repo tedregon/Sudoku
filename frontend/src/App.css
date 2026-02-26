@@ -1019,6 +1019,10 @@ body {
   color: #fff;
 }
 
+.number-selector__button--complete {
+  opacity: 0.5;
+}
+
 .number-selector__clear-digit {
   width: 100%;
   height: 60px;

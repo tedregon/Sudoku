@@ -353,6 +353,22 @@ export function useGameState() {
     return highlighted;
   }, [selectedNumber, roomState, getCellValue]);
 
+  // Digits 1–9 that have all nine placed with no conflicts
+  const getCompletedDigits = useCallback((): number[] => {
+    if (!roomState) return [];
+    const completed: number[] = [];
+    for (let digit = 1; digit <= 9; digit++) {
+      const indices: number[] = [];
+      for (let i = 0; i < 81; i++) {
+        if (getCellValue(i) === digit) indices.push(i);
+      }
+      if (indices.length !== 9) continue;
+      const hasConflict = indices.some((i) => getCellConflicts(i, digit).length > 0);
+      if (!hasConflict) completed.push(digit);
+    }
+    return completed;
+  }, [roomState, getCellValue, getCellConflicts]);
+
   return {
     roomState,
     selectedCell,
@@ -378,5 +394,6 @@ export function useGameState() {
     getCellCandidates,
     getCellConflicts,
     getHighlightedCells,
+    getCompletedDigits,
   };
 }

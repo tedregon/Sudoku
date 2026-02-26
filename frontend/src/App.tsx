@@ -45,6 +45,7 @@ function App() {
     getCellCandidates,
     getCellConflicts,
     getHighlightedCells,
+    getCompletedDigits,
   } = useGameState();
 
   const [playerName, setPlayerName] = useState(() => {
@@ -425,6 +426,7 @@ function App() {
                         isClearModeActive={clearModeActive}
                         onUndo={undo}
                         canUndo={canUndo()}
+                        completedDigits={getCompletedDigits()}
                       />
 
                       <div className="app__controls">

@@ -242,10 +242,22 @@ function App() {
 
   const handleCellClick = (cellIndex: number) => {
     const isPrefilled = roomState?.puzzle.grid[cellIndex] !== null;
+    if (isPrefilled) return;
+
     if (clearModeActive) {
-      if (!isPrefilled) clearCell(cellIndex);
-    } else if (selectedNumber !== null) {
-      if (!isPrefilled) fillCell(cellIndex, selectedNumber);
+      clearCell(cellIndex);
+      return;
+    }
+
+    if (selectedNumber !== null) {
+      const currentValue = getCellValue(cellIndex);
+      if (currentValue === null) {
+        fillCell(cellIndex, selectedNumber);
+      } else if (currentValue === selectedNumber) {
+        clearCell(cellIndex);
+      } else {
+        fillCell(cellIndex, selectedNumber);
+      }
     }
   };
 

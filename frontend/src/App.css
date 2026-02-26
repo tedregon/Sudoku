@@ -522,6 +522,31 @@ body {
   width: 100%;
 }
 
+.app__new-version-banner {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.75rem;
+  padding: 0.5rem 1rem;
+  background-color: #4F3BF4;
+  color: #fff;
+  font-weight: 500;
+}
+
+.app__new-version-banner-btn {
+  padding: 0.35rem 0.75rem;
+  background-color: #fff;
+  color: #4F3BF4;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.app__new-version-banner-btn:hover {
+  background-color: #E4EDF6;
+}
+
 @media (max-width: 768px) {
   .app {
     flex-direction: column;

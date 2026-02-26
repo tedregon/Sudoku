@@ -54,6 +54,7 @@ function App() {
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showCopyNotification, setShowCopyNotification] = useState(false);
   const [cellDigitFontSize, setCellDigitFontSize] = useState(1.75); // rem
+  const [newVersionAvailable, setNewVersionAvailable] = useState(false);
   const hasAutoCreated = useRef(false);
   const hasCheckedUrlParams = useRef(false);
   const hasUrlRoomCode = useRef(false);
@@ -132,6 +133,32 @@ function App() {
       localStorage.setItem('sudoku-player-name', playerName);
     }
   }, [playerName]);
+
+  // Check for a newer deployed version and prompt refresh
+  useEffect(() => {
+    const checkVersion = async () => {
+      try {
+        const res = await fetch(`/version.json?t=${Date.now()}`, { cache: 'no-store' });
+        if (!res.ok) return;
+        const data = await res.json();
+        if (data.version && data.version !== __APP_VERSION__) {
+          setNewVersionAvailable(true);
+        }
+      } catch {
+        // ignore
+      }
+    };
+    const interval = setInterval(checkVersion, 60_000);
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') checkVersion();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    checkVersion();
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, []);
 
   // Focus the selected cell when it changes
   useEffect(() => {
@@ -238,6 +265,18 @@ function App() {
       className="app"
       style={{ ['--cell-digit-font-size' as string]: `${cellDigitFontSize}rem` }}
     >
+      {newVersionAvailable && (
+        <div className="app__new-version-banner" role="status">
+          <span>New version available.</span>
+          <button
+            type="button"
+            className="app__new-version-banner-btn"
+            onClick={() => window.location.reload()}
+          >
+            Refresh
+          </button>
+        </div>
+      )}
       {/* Left navbar */}
       <nav className="app__nav">
         <div className="app__nav-content">

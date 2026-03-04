@@ -50,11 +50,10 @@ export class SocketService {
     // Only create a new socket if one doesn't exist
     this.socket = io(SOCKET_URL, {
       transports: ['websocket'],
-      // Add reconnection options to handle transient failures gracefully
       reconnection: true,
       reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
-      reconnectionAttempts: 5,
+      reconnectionDelayMax: 10000,
+      reconnectionAttempts: 15,
     });
 
     return this.socket;

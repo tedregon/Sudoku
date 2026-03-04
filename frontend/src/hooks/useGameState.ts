@@ -3,6 +3,32 @@ import type { RoomState, PlayerProgress, Difficulty } from '../types/game.types.
 import { socketService, type RoomJoinedEvent, type MoveMadeEvent, type PuzzleRestartedEvent } from '../services/socketService.js';
 import { getConflicts, getCandidates } from '../utils/sudokuValidator.js';
 
+const STORAGE_KEYS = {
+  lastRoomCode: 'sudoku-last-room-code',
+  lastPlayerName: 'sudoku-last-player-name',
+  lastDifficulty: 'sudoku-last-difficulty',
+} as const;
+
+function persistRoom(roomCode: string, playerName: string, difficulty: Difficulty) {
+  try {
+    localStorage.setItem(STORAGE_KEYS.lastRoomCode, roomCode);
+    localStorage.setItem(STORAGE_KEYS.lastPlayerName, playerName);
+    localStorage.setItem(STORAGE_KEYS.lastDifficulty, difficulty);
+  } catch {
+    // ignore
+  }
+}
+
+function clearPersistedRoom() {
+  try {
+    localStorage.removeItem(STORAGE_KEYS.lastRoomCode);
+    localStorage.removeItem(STORAGE_KEYS.lastPlayerName);
+    localStorage.removeItem(STORAGE_KEYS.lastDifficulty);
+  } catch {
+    // ignore
+  }
+}
+
 interface MoveHistoryEntry {
   cellIndex: number;
   previousValue: number | null;
@@ -10,6 +36,7 @@ interface MoveHistoryEntry {
 
 export function useGameState() {
   const [roomState, setRoomState] = useState<RoomState | null>(null);
+  const [isConnected, setIsConnected] = useState(false);
   const [selectedCell, setSelectedCell] = useState<number | null>(null);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [clearModeActive, setClearModeActive] = useState(false);
@@ -26,6 +53,12 @@ export function useGameState() {
   useEffect(() => {
     const socket = socketService.getSocket();
     if (!socket) return;
+
+    const onConnect = () => setIsConnected(true);
+    const onDisconnect = () => setIsConnected(false);
+    setIsConnected(socket.connected);
+    socket.on('connect', onConnect);
+    socket.on('disconnect', onDisconnect);
 
     const convertPlayerState = (playerState: any) => {
       if (!playerState) return null;
@@ -57,6 +90,8 @@ export function useGameState() {
     }
 
     const handleRoomCreated = (data: RoomJoinedEvent) => {
+      const playerName = data.playerState?.playerName || 'Player';
+      persistRoom(data.roomCode, playerName, data.difficulty);
       setRoomState({
         roomCode: data.roomCode,
         puzzle: data.puzzle,
@@ -68,6 +103,8 @@ export function useGameState() {
     };
 
     const handleRoomJoined = (data: RoomJoinedEvent) => {
+      const playerName = data.playerState?.playerName || 'Player';
+      persistRoom(data.roomCode, playerName, data.difficulty);
       setRoomState({
         roomCode: data.roomCode,
         puzzle: data.puzzle,
@@ -81,7 +118,14 @@ export function useGameState() {
     };
 
     const handleRoomError = (error: { message: string }) => {
-      setError(error.message);
+      // Room no longer exists (e.g. server restart) — clear persisted room and state so we don't retry
+      if (error.message === 'Room not found') {
+        clearPersistedRoom();
+        setRoomState(null);
+        setError('Room no longer available. It may have expired or the server restarted. Create a new room or enter another code.');
+      } else {
+        setError(error.message);
+      }
     };
 
     const handleMoveMade = (data: MoveMadeEvent) => {
@@ -205,6 +249,8 @@ export function useGameState() {
     socketService.onPlayerNameUpdated(handlePlayerNameUpdated);
 
     return () => {
+      socket.off('connect', onConnect);
+      socket.off('disconnect', onDisconnect);
       socket.off('connect', handleReconnect);
       socketService.off('room-created', handleRoomCreated);
       socketService.off('room-joined', handleRoomJoined);
@@ -229,6 +275,7 @@ export function useGameState() {
 
   const leaveRoom = useCallback(() => {
     socketService.leaveRoom();
+    clearPersistedRoom();
     setRoomState(null);
     setSelectedCell(null);
     setSelectedNumber(null);
@@ -371,6 +418,7 @@ export function useGameState() {
 
   return {
     roomState,
+    isConnected,
     selectedCell,
     selectedNumber,
     clearModeActive,

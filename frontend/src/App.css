@@ -44,7 +44,7 @@ body {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 1.5rem;
+  gap: 1rem;
 }
 
 .app__nav-brand {
@@ -76,6 +76,12 @@ body {
   flex-direction: column;
   align-items: stretch;
   gap: 0.5rem;
+}
+
+.app__nav-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem; /* 8px */
 }
 
 .app__nav-difficulty-label {
@@ -129,6 +135,16 @@ body {
 
 .app__nav-join-btn:hover {
   background-color: #4331D1;
+}
+
+.app__nav-join-btn--secondary {
+  background-color: #fff;
+  color: #4F3BF4;
+  border: 1px solid #4F3BF4;
+}
+
+.app__nav-join-btn--secondary:hover {
+  background-color: rgba(79, 59, 244, 0.06);
 }
 
 .app__nav-players {
@@ -512,6 +528,16 @@ body {
   color: #4F3BF4;
 }
 
+.app__reconnecting {
+  padding: 0.5rem 1rem;
+  background-color: #e3f2fd;
+  color: #1565c0;
+  border-radius: 6px;
+  text-align: center;
+  font-weight: 500;
+  width: 100%;
+}
+
 .app__error {
   padding: 0.5rem 1rem;
   background-color: #ffc8d1;
@@ -547,75 +573,7 @@ body {
   background-color: #E4EDF6;
 }
 
-@media (max-width: 768px) {
-  .app {
-    flex-direction: column;
-    padding-left: 1rem;
-    padding-right: 1rem;
-  }
 
-  .app__nav {
-    max-width: none;
-    width: 100%;
-    min-height: 0;
-    border-right: none;
-    border-bottom: 1px solid #e0e0e0;
-    padding: 1rem;
-  }
-
-  .app__nav-content {
-    flex: none;
-    flex-direction: row;
-    flex-wrap: wrap;
-    gap: 1rem;
-    align-items: center;
-  }
-
-  .app__nav-brand {
-    flex: 1 1 100%;
-  }
-
-  .app__nav-difficulties {
-    flex: 1;
-    min-width: 0;
-  }
-
-  .app__nav-join-btn {
-    margin-top: 0;
-  }
-
-  .app__subheader {
-    flex-direction: column;
-    align-items: flex-start;
-    gap: 1rem;
-  }
-
-  .app__subheader-controls {
-    width: 100%;
-  }
-
-  .app__subheader .app__button--share {
-    width: 100%;
-  }
-
-  .app__container {
-    padding: 1rem;
-  }
-
-  .app__game-layout {
-    flex-direction: column;
-  }
-
-  .app__game-area {
-    flex-direction: column;
-    align-items: center;
-  }
-
-  .app__game-controls {
-    width: 100%;
-    max-width: 600px;
-  }
-}
 
 
 /* Timer Component */
@@ -1292,4 +1250,94 @@ body {
 
 .cell--thick-bottom {
   border-bottom: 2px solid #061222 !important;
+}
+
+
+@media (max-width: 768px) {
+  .app {
+    flex-direction: column;
+  }
+
+  .app__nav {
+    max-width: none;
+    width: 100%;
+    min-height: 0;
+    border-right: none;
+    border-bottom: 1px solid #e0e0e0;
+    padding: 1rem;
+  }
+
+  .app__nav-content {
+    flex: none;
+    flex-direction: column;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: center;
+  }
+
+  .app__nav-brand {
+    flex: 1 1 100%;
+  }
+
+  .app__nav-difficulties {
+    flex: 1;
+    flex-direction: row;
+    min-width: 0;
+    align-items: center;
+  }
+
+  .app__nav-actions {
+    flex-direction: row;
+    align-items: center;
+    gap: 0.5rem; /* 8px */
+  }
+
+  .app__nav-join-btn {
+    margin-top: 0;
+  }
+
+  .app__subheader {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 1rem;
+  }
+
+  .app__subheader-controls {
+    width: 100%;
+  }
+
+  .app__subheader .app__button--share {
+    width: 100%;
+  }
+
+  .app__container {
+    padding: 1rem;
+  }
+
+  .app__game-layout {
+    flex-direction: column;
+  }
+
+  .app__game-area {
+    flex-direction: column;
+    align-items: center;
+  }
+
+  .app__game-controls {
+    width: 100%;
+    max-width: 600px;
+  }
+
+  .number-selector {
+    width: 100%;
+  }
+
+  .number-selector__digit-group {
+    width: 100%;
+  }
+
+  .number-selector__grid {
+    max-width: 100%;
+    grid-template-columns: repeat(5, 1fr);
+  }
 }

@@ -23,6 +23,7 @@ function App() {
   useSocket();
   const {
     roomState,
+    isConnected,
     selectedCell,
     selectedNumber,
     showCandidates,
@@ -54,11 +55,13 @@ function App() {
   });
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showCopyNotification, setShowCopyNotification] = useState(false);
+  const [showReconnectedMessage, setShowReconnectedMessage] = useState(false);
   const [cellDigitFontSize, setCellDigitFontSize] = useState(1.75); // rem
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
   const hasAutoCreated = useRef(false);
   const hasCheckedUrlParams = useRef(false);
   const hasUrlRoomCode = useRef(false);
+  const prevIsConnectedRef = useRef(isConnected);
 
   // Check URL parameters for room code and auto-join (runs first, before auto-create)
   useEffect(() => {
@@ -81,17 +84,45 @@ function App() {
     }
   }, [joinRoom, playerName, roomState]);
 
-  // Auto-create "Very Hard" room on mount, waiting for socket connection
-  // Only runs if no URL params were found and no room exists
+  // Show a temporary "back online" message after we've been offline
+  useEffect(() => {
+    const wasConnected = prevIsConnectedRef.current;
+    prevIsConnectedRef.current = isConnected;
+
+    if (!wasConnected && isConnected) {
+      setShowReconnectedMessage(true);
+      const timeout = window.setTimeout(() => {
+        setShowReconnectedMessage(false);
+      }, 3000);
+      return () => window.clearTimeout(timeout);
+    }
+  }, [isConnected]);
+
+  // Try to re-join last room from localStorage (after URL check, before auto-create)
+  useEffect(() => {
+    if (roomState || hasUrlRoomCode.current) {
+      return;
+    }
+    const storedCode = localStorage.getItem('sudoku-last-room-code');
+    const storedName = localStorage.getItem('sudoku-last-player-name') || playerName;
+    if (storedCode) {
+      joinRoom(storedCode, storedName);
+    }
+  }, [joinRoom, playerName, roomState]);
+
+  // Auto-create "Very Hard" room on mount only when no URL room and no stored room to try
   useEffect(() => {
     // Don't auto-create if we're already in a room or have already auto-created
     if (roomState || hasAutoCreated.current) {
       return;
     }
+    // Don't auto-create if we are trying to join from URL params
+    if (hasUrlRoomCode.current) {
+      return;
+    }
     
-    // Wait a bit to see if URL params will trigger a join
+    // Wait a bit to see if URL or stored-room join will run first
     const checkDelay = setTimeout(() => {
-      // Double-check that we're not joining from URL and no room exists
       if (!roomState && !hasAutoCreated.current && !hasUrlRoomCode.current) {
         const socket = socketService.getSocket();
         if (!socket) {
@@ -107,7 +138,6 @@ function App() {
         }
 
         const tryCreateRoom = () => {
-          // Re-check socket connection status and state
           const currentSocket = socketService.getSocket();
           if (currentSocket?.connected && !hasAutoCreated.current && !roomState) {
             hasAutoCreated.current = true;
@@ -121,7 +151,7 @@ function App() {
           socket.once('connect', tryCreateRoom);
         }
       }
-    }, 500); // Wait 500ms to see if URL join happens
+    }, 800); // Wait for URL or stored-room join attempt
 
     return () => {
       clearTimeout(checkDelay);
@@ -196,6 +226,11 @@ function App() {
     } else {
       createRoom(difficulty, playerName);
     }
+  };
+
+  const handleNewGameClick = () => {
+    const difficulty = roomState?.difficulty ?? 'very-hard';
+    handleDifficultyClick(difficulty);
   };
 
   const handleJoinRoom = (roomCode: string, name: string) => {
@@ -313,29 +348,37 @@ function App() {
               </a>
             </p>
           </div>
-          <div className="app__nav-difficulties">
-            <label htmlFor="difficulty-select" className="app__nav-difficulty-label">
-              Difficulty
-            </label>
-            <select
-              id="difficulty-select"
-              className="app__nav-difficulty-select"
-              value={roomState?.difficulty ?? 'very-hard'}
-              onChange={(e) => handleDifficultyClick(e.target.value as Difficulty)}
+          <div className="app__nav-actions">
+            <div className="app__nav-difficulties">
+              <label htmlFor="difficulty-select" className="app__nav-difficulty-label">
+                Difficulty
+              </label>
+              <select
+                id="difficulty-select"
+                className="app__nav-difficulty-select"
+                value={roomState?.difficulty ?? 'very-hard'}
+                onChange={(e) => handleDifficultyClick(e.target.value as Difficulty)}
+              >
+                {DIFFICULTIES.map((difficulty) => (
+                  <option key={difficulty.value} value={difficulty.value}>
+                    {difficulty.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <button
+              onClick={handleNewGameClick}
+              className="app__nav-join-btn"
             >
-              {DIFFICULTIES.map((difficulty) => (
-                <option key={difficulty.value} value={difficulty.value}>
-                  {difficulty.label}
-                </option>
-              ))}
-            </select>
+              New Game
+            </button>
+            <button
+              onClick={() => setShowJoinModal(true)}
+              className="app__nav-join-btn app__nav-join-btn--secondary"
+            >
+              Join Room
+            </button>
           </div>
-          <button
-            onClick={() => setShowJoinModal(true)}
-            className="app__nav-join-btn"
-          >
-            Join Room
-          </button>
           {roomState && roomState.playerState && (
             <div className="app__nav-players">
               <PlayerList
@@ -395,6 +438,16 @@ function App() {
                 </button>
               </div>
               <div className="app__subheader-messages">
+                {roomState && !isConnected && (
+                  <div className="app__reconnecting" role="status">
+                    You're offline. We're trying to reconnect you back.
+                  </div>
+                )}
+                {roomState && isConnected && showReconnectedMessage && (
+                  <div className="app__reconnecting" role="status">
+                    Hooray! We're back online!
+                  </div>
+                )}
                 {error && <div className="app__error">{error}</div>}
                 {roomState.playerState?.completionTime != null && (
                   <div className="app__completion-message">

@@ -29,17 +29,27 @@ function clearPersistedRoom() {
   }
 }
 
+export type EntryMode = 'value' | 'notes';
+
 interface MoveHistoryEntry {
   cellIndex: number;
   previousValue: number | null;
 }
 
+function movesMapFromPlayerState(playerState: RoomState['playerState']): Map<number, number> {
+  if (!playerState) return new Map();
+  return playerState.moves instanceof Map
+    ? new Map(playerState.moves)
+    : new Map(Object.entries(playerState.moves || {}).map(([k, v]) => [Number(k), v as number]));
+}
+
 export function useGameState() {
   const [roomState, setRoomState] = useState<RoomState | null>(null);
   const [isConnected, setIsConnected] = useState(false);
-  const [selectedCell, setSelectedCell] = useState<number | null>(null);
   const [selectedNumber, setSelectedNumber] = useState<number | null>(null);
   const [clearModeActive, setClearModeActive] = useState(false);
+  const [entryMode, setEntryModeState] = useState<EntryMode>('value');
+  const [cellNotes, setCellNotes] = useState<Map<number, Set<number>>>(() => new Map());
   const [showCandidates, setShowCandidates] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const roomStateRef = useRef<RoomState | null>(null);
@@ -92,6 +102,7 @@ export function useGameState() {
     const handleRoomCreated = (data: RoomJoinedEvent) => {
       const playerName = data.playerState?.playerName || 'Player';
       persistRoom(data.roomCode, playerName, data.difficulty);
+      setCellNotes(new Map());
       setRoomState({
         roomCode: data.roomCode,
         puzzle: data.puzzle,
@@ -105,6 +116,7 @@ export function useGameState() {
     const handleRoomJoined = (data: RoomJoinedEvent) => {
       const playerName = data.playerState?.playerName || 'Player';
       persistRoom(data.roomCode, playerName, data.difficulty);
+      setCellNotes(new Map());
       setRoomState({
         roomCode: data.roomCode,
         puzzle: data.puzzle,
@@ -121,6 +133,7 @@ export function useGameState() {
       // Room no longer exists (e.g. server restart) — clear persisted room and state so we don't retry
       if (error.message === 'Room not found') {
         clearPersistedRoom();
+        setCellNotes(new Map());
         setRoomState(null);
         setError('Room no longer available. It may have expired or the server restarted. Create a new room or enter another code.');
       } else {
@@ -129,6 +142,20 @@ export function useGameState() {
     };
 
     const handleMoveMade = (data: MoveMadeEvent) => {
+      const ourId = roomStateRef.current?.playerState?.playerId;
+      if (
+        ourId &&
+        data.playerId === ourId &&
+        data.value !== null &&
+        data.value !== 0
+      ) {
+        setCellNotes((prev) => {
+          const next = new Map(prev);
+          next.delete(data.cellIndex);
+          return next;
+        });
+      }
+
       setRoomState((prev) => {
         if (!prev) return null;
 
@@ -185,6 +212,7 @@ export function useGameState() {
       if (isOurRestart) {
         moveHistoryRef.current = [];
       }
+      setCellNotes(new Map());
       setRoomState((prev) => {
         if (!prev) return null;
         const updatedPlayerState =
@@ -277,8 +305,10 @@ export function useGameState() {
     socketService.leaveRoom();
     clearPersistedRoom();
     setRoomState(null);
-    setSelectedCell(null);
     setSelectedNumber(null);
+    setClearModeActive(false);
+    setEntryModeState('value');
+    setCellNotes(new Map());
     moveHistoryRef.current = [];
   }, []);
 
@@ -305,13 +335,6 @@ export function useGameState() {
     socketService.makeMove(cellIndex, value);
   }, [roomState]);
 
-  const selectCell = useCallback((cellIndex: number) => {
-    if (!roomState) return;
-    setSelectedCell(cellIndex);
-    // Do not set selectedNumber here - it is only set by the number pad / clear digit
-    // (digit-first mode). Highlighting uses getCellValue(selectedCell) when selectedCell is set.
-  }, [roomState]);
-
   const selectNumber = useCallback((number: number | null) => {
     setSelectedNumber(number);
     if (number !== null) {
@@ -324,8 +347,64 @@ export function useGameState() {
     setClearModeActive(true);
   }, []);
 
+  const setEntryMode = useCallback((mode: EntryMode) => {
+    setEntryModeState(mode);
+    setSelectedNumber(null);
+    setClearModeActive(false);
+  }, []);
+
+  const getCellNotes = useCallback(
+    (cellIndex: number): number[] => {
+      const set = cellNotes.get(cellIndex);
+      if (!set || set.size === 0) return [];
+      return Array.from(set).sort((a, b) => a - b);
+    },
+    [cellNotes],
+  );
+
+  const clearCellNotes = useCallback((cellIndex: number) => {
+    setCellNotes((prev) => {
+      if (!prev.has(cellIndex)) return prev;
+      const next = new Map(prev);
+      next.delete(cellIndex);
+      return next;
+    });
+  }, []);
+
+  const toggleCellNote = useCallback(
+    (cellIndex: number, digit: number) => {
+      if (!roomState?.playerState) return;
+      if (roomState.puzzle.grid[cellIndex] !== null) return;
+      const moves = movesMapFromPlayerState(roomState.playerState);
+      if (moves.get(cellIndex)) return;
+
+      setCellNotes((prev) => {
+        const next = new Map(prev);
+        const existing = next.get(cellIndex);
+        const updated = existing ? new Set(existing) : new Set<number>();
+        if (updated.has(digit)) {
+          updated.delete(digit);
+        } else {
+          updated.add(digit);
+        }
+        if (updated.size === 0) {
+          next.delete(cellIndex);
+        } else {
+          next.set(cellIndex, updated);
+        }
+        return next;
+      });
+    },
+    [roomState],
+  );
+
   const fillCell = useCallback((cellIndex: number, value: number) => {
     if (!roomState?.playerState) return;
+    setCellNotes((prev) => {
+      const next = new Map(prev);
+      next.delete(cellIndex);
+      return next;
+    });
     makeMove(cellIndex, value);
   }, [roomState, makeMove]);
 
@@ -390,7 +469,6 @@ export function useGameState() {
 
   const getHighlightedCells = useCallback((): number[] => {
     if (!roomState || selectedNumber === null) return [];
-    // Highlight cells matching the active digit (only from number pad)
     const highlighted: number[] = [];
     for (let i = 0; i < 81; i++) {
       if (getCellValue(i) === selectedNumber) {
@@ -419,9 +497,10 @@ export function useGameState() {
   return {
     roomState,
     isConnected,
-    selectedCell,
     selectedNumber,
     clearModeActive,
+    entryMode,
+    setEntryMode,
     showCandidates,
     error,
     setShowCandidates,
@@ -429,11 +508,12 @@ export function useGameState() {
     joinRoom,
     leaveRoom,
     updatePlayerName,
-    selectCell,
     selectNumber,
     activateClearMode,
     fillCell,
     clearCell,
+    clearCellNotes,
+    toggleCellNote,
     undo,
     canUndo,
     restartPuzzle,
@@ -443,5 +523,6 @@ export function useGameState() {
     getCellConflicts,
     getHighlightedCells,
     getCompletedDigits,
+    getCellNotes,
   };
 }

@@ -3,10 +3,10 @@ import { Cell } from './Cell';
 
 interface GameBoardProps {
   puzzle: (number | null)[];
-  selectedCell: number | null;
   showCandidates: boolean;
   getCellValue: (cellIndex: number) => number | null;
   getCellCandidates: (cellIndex: number) => number[];
+  getCellNotes: (cellIndex: number) => number[];
   getCellConflicts: (cellIndex: number, value: number | null) => number[];
   getHighlightedCells: () => number[];
   onCellClick: (cellIndex: number) => void;
@@ -15,10 +15,10 @@ interface GameBoardProps {
 
 export const GameBoard: React.FC<GameBoardProps> = ({
   puzzle,
-  selectedCell,
   showCandidates,
   getCellValue,
   getCellCandidates,
+  getCellNotes,
   getCellConflicts,
   getHighlightedCells,
   onCellClick,
@@ -32,9 +32,13 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
     const value = getCellValue(cellIndex);
     const isPrefilled = puzzle[cellIndex] !== null;
-    const isSelected = selectedCell === cellIndex;
     const isHighlighted = highlightedCells.includes(cellIndex);
-    const candidates = showCandidates ? getCellCandidates(cellIndex) : [];
+    const pencilMarks =
+      value !== null
+        ? []
+        : showCandidates
+          ? getCellCandidates(cellIndex)
+          : getCellNotes(cellIndex);
     
     // Check for conflicts (check if this cell's value conflicts with other cells)
     let hasConflict = false;
@@ -56,12 +60,10 @@ export const GameBoard: React.FC<GameBoardProps> = ({
       <Cell
         key={cellIndex}
         value={value}
-        candidates={candidates}
+        pencilMarks={pencilMarks}
         isPrefilled={isPrefilled}
-        isSelected={isSelected}
         isHighlighted={isHighlighted}
         hasConflict={hasConflict}
-        showCandidates={showCandidates}
         onClick={() => onCellClick(cellIndex)}
         onKeyDown={onKeyDown}
         cellIndex={cellIndex}

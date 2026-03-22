@@ -2,12 +2,10 @@ import React from 'react';
 
 interface CellProps {
   value: number | null;
-  candidates: number[];
+  pencilMarks: number[];
   isPrefilled: boolean;
-  isSelected: boolean;
   isHighlighted: boolean;
   hasConflict: boolean;
-  showCandidates: boolean;
   onClick: () => void;
   onKeyDown?: (e: React.KeyboardEvent) => void;
   cellIndex?: number;
@@ -16,12 +14,10 @@ interface CellProps {
 
 export const Cell: React.FC<CellProps> = ({
   value,
-  candidates,
+  pencilMarks,
   isPrefilled,
-  isSelected,
   isHighlighted,
   hasConflict,
-  showCandidates,
   onClick,
   onKeyDown,
   cellIndex,
@@ -30,7 +26,6 @@ export const Cell: React.FC<CellProps> = ({
   const cellClasses = [
     'cell',
     isPrefilled && 'cell--prefilled',
-    isSelected && 'cell--selected',
     isHighlighted && 'cell--highlighted',
     hasConflict && 'cell--conflict',
     className,
@@ -43,19 +38,19 @@ export const Cell: React.FC<CellProps> = ({
       className={cellClasses}
       onClick={onClick}
       onKeyDown={onKeyDown}
-      tabIndex={isSelected && !isPrefilled ? 0 : -1}
+      tabIndex={-1}
       data-cell-index={cellIndex}
     >
       {value !== null ? (
         <span className="cell__value">{value}</span>
-      ) : showCandidates && candidates.length > 0 ? (
+      ) : pencilMarks.length > 0 ? (
         <div className="cell__candidates">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (
             <span
               key={num}
-              className={`cell__candidate ${candidates.includes(num) ? 'cell__candidate--visible' : ''}`}
+              className={`cell__candidate ${pencilMarks.includes(num) ? 'cell__candidate--visible' : ''}`}
             >
-              {candidates.includes(num) ? num : ''}
+              {pencilMarks.includes(num) ? num : ''}
             </span>
           ))}
         </div>

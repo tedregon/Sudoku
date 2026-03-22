@@ -1,6 +1,9 @@
 import React from 'react';
+import type { EntryMode } from '../hooks/useGameState.js';
 
 interface NumberSelectorProps {
+  entryMode: EntryMode;
+  onEntryModeChange: (mode: EntryMode) => void;
   selectedNumber: number | null;
   onNumberSelect: (number: number | null) => void;
   onClearDigit: () => void;
@@ -11,6 +14,8 @@ interface NumberSelectorProps {
 }
 
 export const NumberSelector: React.FC<NumberSelectorProps> = ({
+  entryMode,
+  onEntryModeChange,
   selectedNumber,
   onNumberSelect,
   onClearDigit,
@@ -21,6 +26,34 @@ export const NumberSelector: React.FC<NumberSelectorProps> = ({
 }) => {
   return (
     <div className="number-selector">
+      <div
+        className="number-selector__entry-mode"
+        role="tablist"
+        aria-label="Enter values or pencil notes"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={entryMode === 'value'}
+          className={`number-selector__entry-segment ${
+            entryMode === 'value' ? 'number-selector__entry-segment--active' : ''
+          }`}
+          onClick={() => onEntryModeChange('value')}
+        >
+          Value
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={entryMode === 'notes'}
+          className={`number-selector__entry-segment ${
+            entryMode === 'notes' ? 'number-selector__entry-segment--active' : ''
+          }`}
+          onClick={() => onEntryModeChange('notes')}
+        >
+          Notes
+        </button>
+      </div>
       <div className="number-selector__digit-group">
         <div className="number-selector__grid">
           {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((num) => (

@@ -24,7 +24,6 @@ function App() {
   const {
     roomState,
     isConnected,
-    selectedCell,
     selectedNumber,
     showCandidates,
     error,
@@ -35,8 +34,12 @@ function App() {
     updatePlayerName,
     selectNumber,
     activateClearMode,
+    entryMode,
+    setEntryMode,
     fillCell,
     clearCell,
+    clearCellNotes,
+    toggleCellNote,
     clearModeActive,
     undo,
     canUndo,
@@ -44,6 +47,7 @@ function App() {
     canRestartPuzzle,
     getCellValue,
     getCellCandidates,
+    getCellNotes,
     getCellConflicts,
     getHighlightedCells,
     getCompletedDigits,
@@ -58,6 +62,7 @@ function App() {
   const [showReconnectedMessage, setShowReconnectedMessage] = useState(false);
   const [cellDigitFontSize, setCellDigitFontSize] = useState(1.75); // rem
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
+  const [newVersionBannerDismissed, setNewVersionBannerDismissed] = useState(false);
   const hasAutoCreated = useRef(false);
   const hasCheckedUrlParams = useRef(false);
   const hasUrlRoomCode = useRef(false);
@@ -191,17 +196,6 @@ function App() {
     };
   }, []);
 
-  // Focus the selected cell when it changes
-  useEffect(() => {
-    if (selectedCell !== null) {
-      // Find the cell element and focus it
-      const cellElement = document.querySelector(`[data-cell-index="${selectedCell}"]`) as HTMLElement;
-      if (cellElement) {
-        cellElement.focus();
-      }
-    }
-  }, [selectedCell]);
-
   const handleGoHome = () => {
     window.history.replaceState({}, '', window.location.pathname);
     const difficulty = roomState?.difficulty ?? 'very-hard';
@@ -279,6 +273,19 @@ function App() {
     const isPrefilled = roomState?.puzzle.grid[cellIndex] !== null;
     if (isPrefilled) return;
 
+    if (entryMode === 'notes') {
+      if (clearModeActive) {
+        clearCellNotes(cellIndex);
+        return;
+      }
+      if (selectedNumber !== null) {
+        const currentValue = getCellValue(cellIndex);
+        if (currentValue !== null) return;
+        toggleCellNote(cellIndex, selectedNumber);
+      }
+      return;
+    }
+
     if (clearModeActive) {
       clearCell(cellIndex);
       return;
@@ -308,21 +315,32 @@ function App() {
     }
   };
 
+  const showVersionBanner = newVersionAvailable && !newVersionBannerDismissed;
+
   return (
     <div
-      className="app"
+      className={`app${showVersionBanner ? ' app--version-banner-visible' : ''}`}
       style={{ ['--cell-digit-font-size' as string]: `${cellDigitFontSize}rem` }}
     >
-      {newVersionAvailable && (
+      {showVersionBanner && (
         <div className="app__new-version-banner" role="status">
           <span>New version available.</span>
-          <button
-            type="button"
-            className="app__new-version-banner-btn"
-            onClick={() => window.location.reload()}
-          >
-            Refresh
-          </button>
+          <div className="app__new-version-banner-actions">
+            <button
+              type="button"
+              className="app__new-version-banner-btn app__new-version-banner-btn--primary"
+              onClick={() => window.location.reload()}
+            >
+              Refresh
+            </button>
+            <button
+              type="button"
+              className="app__new-version-banner-btn app__new-version-banner-btn--cancel"
+              onClick={() => setNewVersionBannerDismissed(true)}
+            >
+              Cancel
+            </button>
+          </div>
         </div>
       )}
       {/* Left navbar */}
@@ -473,10 +491,10 @@ function App() {
                   >
                     <GameBoard
                       puzzle={roomState.puzzle.grid}
-                      selectedCell={null}
                       showCandidates={showCandidates}
                       getCellValue={getCellValue}
                       getCellCandidates={getCellCandidates}
+                      getCellNotes={getCellNotes}
                       getCellConflicts={getCellConflicts}
                       getHighlightedCells={getHighlightedCells}
                       onCellClick={handleCellClick}
@@ -485,6 +503,8 @@ function App() {
 
                     <div className="app__game-controls">
                       <NumberSelector
+                        entryMode={entryMode}
+                        onEntryModeChange={setEntryMode}
                         selectedNumber={selectedNumber}
                         onNumberSelect={handleNumberSelect}
                         onClearDigit={handleClearDigit}

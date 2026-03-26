@@ -349,7 +349,6 @@ export function useGameState() {
 
   const setEntryMode = useCallback((mode: EntryMode) => {
     setEntryModeState(mode);
-    setSelectedNumber(null);
     setClearModeActive(false);
   }, []);
 

@@ -5,6 +5,7 @@ import cors from 'cors';
 import { RoomManager } from './services/roomManager.js';
 import { GameStateManager } from './services/gameStateManager.js';
 import type { Difficulty, MakeMovePayload, JoinRoomPayload, PlayerState } from './types/game.types.js';
+import { clientIpFromSocket, logSocketEvent, shortUserAgent } from './socketLog.js';
 
 function serializePlayerState(playerState: PlayerState | undefined) {
   if (!playerState) return null;
@@ -38,7 +39,12 @@ const gameStateManager = new GameStateManager();
 const socketToPlayer = new Map<string, { roomCode: string; playerId: string }>();
 
 io.on('connection', (socket) => {
-  console.log(`Client connected: ${socket.id}`);
+  logSocketEvent('socket_connect', {
+    socketId: socket.id,
+    transport: socket.conn.transport.name,
+    clientIp: clientIpFromSocket(socket),
+    userAgent: shortUserAgent(socket) ?? '',
+  });
 
   socket.on('join-room', (payload: JoinRoomPayload) => {
     const { roomCode, playerName } = payload;
@@ -49,6 +55,12 @@ io.on('connection', (socket) => {
     if (!room) {
       // Try to join existing room first, if fails create new
       // For now, we'll require explicit room creation
+      logSocketEvent('room_join_error', {
+        socketId: socket.id,
+        roomCode,
+        playerName,
+        detail: 'room_not_found',
+      });
       socket.emit('room-error', { message: 'Room not found' });
       return;
     }
@@ -78,6 +90,12 @@ io.on('connection', (socket) => {
       // Join the room (will create new player or return existing)
       const joinedRoom = roomManager.joinRoom(roomCode, actualPlayerId, playerName);
       if (!joinedRoom) {
+        logSocketEvent('room_join_error', {
+          socketId: socket.id,
+          roomCode,
+          playerName,
+          detail: 'join_room_failed',
+        });
         socket.emit('room-error', { message: 'Failed to join room' });
         return;
       }
@@ -86,6 +104,18 @@ io.on('connection', (socket) => {
 
     socket.join(roomCode);
     socketToPlayer.set(socket.id, { roomCode, playerId: actualPlayerId });
+
+    const roomAfterJoin = roomManager.getRoom(roomCode);
+    const playerCount = roomAfterJoin?.players.size ?? 0;
+    logSocketEvent('room_joined', {
+      socketId: socket.id,
+      roomCode,
+      playerId: actualPlayerId,
+      playerName,
+      reusedLogicalPlayerId: actualPlayerId !== playerId,
+      playerCount,
+      difficulty: roomAfterJoin?.difficulty ?? '',
+    });
 
     // Send current room state to the reconnecting player
     const playerState = gameStateManager.getPlayerState(room, actualPlayerId);
@@ -116,6 +146,15 @@ io.on('connection', (socket) => {
     const room = roomManager.createRoom(difficulty, playerId, playerName);
     socket.join(room.roomCode);
     socketToPlayer.set(socket.id, { roomCode: room.roomCode, playerId });
+
+    logSocketEvent('room_created', {
+      socketId: socket.id,
+      roomCode: room.roomCode,
+      playerId,
+      playerName,
+      difficulty,
+      playerCount: room.players.size,
+    });
 
     const playerState = gameStateManager.getPlayerState(room, playerId);
     const allPlayers = gameStateManager.getAllPlayersProgress(room);
@@ -217,6 +256,15 @@ io.on('connection', (socket) => {
   socket.on('leave-room', () => {
     const playerInfo = socketToPlayer.get(socket.id);
     if (playerInfo) {
+      const roomBeforeLeave = roomManager.getRoom(playerInfo.roomCode);
+      const playerName = roomBeforeLeave?.players.get(playerInfo.playerId)?.playerName ?? '';
+      logSocketEvent('room_leave_explicit', {
+        socketId: socket.id,
+        roomCode: playerInfo.roomCode,
+        playerId: playerInfo.playerId,
+        playerName,
+        playerCountBefore: roomBeforeLeave?.players.size ?? 0,
+      });
       roomManager.leaveRoom(playerInfo.roomCode, playerInfo.playerId);
       socket.leave(playerInfo.roomCode);
       
@@ -233,19 +281,35 @@ io.on('connection', (socket) => {
     }
   });
 
-  socket.on('disconnect', () => {
+  socket.on('disconnect', (reason) => {
     const playerInfo = socketToPlayer.get(socket.id);
+    let playerName = '';
+    let roomPlayerCount = 0;
+    let difficulty: string | undefined;
     if (playerInfo) {
+      const room = roomManager.getRoom(playerInfo.roomCode);
+      playerName = room?.players.get(playerInfo.playerId)?.playerName ?? '';
+      roomPlayerCount = room?.players.size ?? 0;
+      difficulty = room?.difficulty;
       // Don't call leaveRoom - preserve player state for reconnection
       // Just remove the socket mapping so they can reconnect with the same playerId
       socket.leave(playerInfo.roomCode);
-      
       // Don't notify other players - they're just disconnected, not left
       // The player state remains in the room for reconnection
-      
       socketToPlayer.delete(socket.id);
     }
-    console.log(`Client disconnected: ${socket.id}`);
+
+    logSocketEvent('socket_disconnect', {
+      socketId: socket.id,
+      disconnectReason: reason,
+      hadActiveRoomMapping: Boolean(playerInfo),
+      roomCode: playerInfo?.roomCode ?? '',
+      playerId: playerInfo?.playerId ?? '',
+      playerName,
+      roomPlayerCount,
+      difficulty: difficulty ?? '',
+      transportAtDisconnect: socket.conn.transport.name,
+    });
   });
 });
 

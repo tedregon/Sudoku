@@ -211,8 +211,8 @@ export function useGameState() {
       const isOurRestart = roomStateRef.current?.playerState?.playerId === data.playerId;
       if (isOurRestart) {
         moveHistoryRef.current = [];
+        setCellNotes(new Map());
       }
-      setCellNotes(new Map());
       setRoomState((prev) => {
         if (!prev) return null;
         const updatedPlayerState =

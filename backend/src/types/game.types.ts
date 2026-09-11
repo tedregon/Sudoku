@@ -30,4 +30,12 @@ export interface MakeMovePayload {
 export interface JoinRoomPayload {
   roomCode: string;
   playerName: string;
+  /** Stable browser id; survives socket reconnects so progress can be reclaimed. */
+  clientId?: string;
+}
+
+export interface CreateRoomPayload {
+  difficulty: Difficulty;
+  playerName: string;
+  clientId?: string;
 }

@@ -1,5 +1,6 @@
 import { io, Socket } from 'socket.io-client';
 import type { Difficulty, Puzzle, PlayerState, PlayerProgress } from '../types/game.types.js';
+import { getClientId } from '../utils/clientId.js';
 
 // Get socket URL from environment variable
 // In Railway, set VITE_SOCKET_URL to your backend service URL
@@ -34,6 +35,8 @@ export interface PuzzleRestartedEvent {
 
 export class SocketService {
   private socket: Socket | null = null;
+  /** Single pending join so reconnect + manual join don't stack once('connect') handlers. */
+  private pendingJoinHandler: (() => void) | null = null;
 
   connect(): Socket {
     // If socket exists and is connected, return it
@@ -60,6 +63,7 @@ export class SocketService {
   }
 
   disconnect(): void {
+    this.clearPendingJoin();
     if (this.socket) {
       this.socket.disconnect();
       this.socket = null;
@@ -70,9 +74,21 @@ export class SocketService {
     return this.socket;
   }
 
+  private clearPendingJoin(): void {
+    if (this.socket && this.pendingJoinHandler) {
+      this.socket.off('connect', this.pendingJoinHandler);
+    }
+    this.pendingJoinHandler = null;
+  }
+
   // Room events
   createRoom(difficulty: Difficulty, playerName: string): void {
-    this.socket?.emit('create-room', { difficulty, playerName });
+    this.clearPendingJoin();
+    this.socket?.emit('create-room', {
+      difficulty,
+      playerName,
+      clientId: getClientId(),
+    });
   }
 
   joinRoom(roomCode: string, playerName: string): void {
@@ -80,15 +96,25 @@ export class SocketService {
     if (!this.socket) {
       this.connect();
     }
-    
+
+    const payload = {
+      roomCode,
+      playerName,
+      clientId: getClientId(),
+    };
+
+    // Replace any prior pending join (avoids duplicate join-room on reconnect races)
+    this.clearPendingJoin();
+
     // If socket is connected, emit immediately
     if (this.socket && this.socket.connected) {
-      this.socket.emit('join-room', { roomCode, playerName });
+      this.socket.emit('join-room', payload);
     } else if (this.socket) {
-      // Socket not connected yet, wait for connection
-      this.socket.once('connect', () => {
-        this.socket?.emit('join-room', { roomCode, playerName });
-      });
+      this.pendingJoinHandler = () => {
+        this.pendingJoinHandler = null;
+        this.socket?.emit('join-room', payload);
+      };
+      this.socket.once('connect', this.pendingJoinHandler);
     }
   }
 

@@ -63,10 +63,48 @@ function App() {
   const [cellDigitFontSize, setCellDigitFontSize] = useState(1.75); // rem
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
   const [newVersionBannerDismissed, setNewVersionBannerDismissed] = useState(false);
+  /** Hold Cmd (Mac) / Ctrl (Windows) to temporarily use Notes while Value is selected. */
+  const [notesModifierHeld, setNotesModifierHeld] = useState(false);
   const hasAutoCreated = useRef(false);
   const hasCheckedUrlParams = useRef(false);
   const hasUrlRoomCode = useRef(false);
   const prevIsConnectedRef = useRef(isConnected);
+
+  const effectiveEntryMode =
+    entryMode === 'value' && notesModifierHeld ? 'notes' : entryMode;
+
+  // Temporary Value → Notes while Cmd/Ctrl is held
+  useEffect(() => {
+    const clearModifier = () => setNotesModifierHeld(false);
+
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Meta' || e.key === 'Control') {
+        setNotesModifierHeld(true);
+      }
+    };
+
+    const onKeyUp = (e: KeyboardEvent) => {
+      if (e.key === 'Meta' || e.key === 'Control' || (!e.metaKey && !e.ctrlKey)) {
+        clearModifier();
+      }
+    };
+
+    const onVisibilityChange = () => {
+      if (document.hidden) clearModifier();
+    };
+
+    window.addEventListener('keydown', onKeyDown);
+    window.addEventListener('keyup', onKeyUp);
+    window.addEventListener('blur', clearModifier);
+    document.addEventListener('visibilitychange', onVisibilityChange);
+
+    return () => {
+      window.removeEventListener('keydown', onKeyDown);
+      window.removeEventListener('keyup', onKeyUp);
+      window.removeEventListener('blur', clearModifier);
+      document.removeEventListener('visibilitychange', onVisibilityChange);
+    };
+  }, []);
 
   // Check URL parameters for room code and auto-join (runs first, before auto-create)
   useEffect(() => {
@@ -273,7 +311,7 @@ function App() {
     const isPrefilled = roomState?.puzzle.grid[cellIndex] !== null;
     if (isPrefilled) return;
 
-    if (entryMode === 'notes') {
+    if (effectiveEntryMode === 'notes') {
       if (clearModeActive) {
         clearCellNotes(cellIndex);
         return;
@@ -503,7 +541,7 @@ function App() {
 
                     <div className="app__game-controls">
                       <NumberSelector
-                        entryMode={entryMode}
+                        entryMode={effectiveEntryMode}
                         onEntryModeChange={setEntryMode}
                         selectedNumber={selectedNumber}
                         onNumberSelect={handleNumberSelect}

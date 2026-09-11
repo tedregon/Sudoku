@@ -6,8 +6,22 @@ interface TimerProps {
   label?: string;
 }
 
-export const Timer: React.FC<TimerProps> = ({ timerStartTime, completionTime, label }) => {
-  const [elapsed, setElapsed] = useState<number>(0);
+export function formatElapsedSeconds(seconds: number): string {
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+
+  if (hours > 0) {
+    return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+  }
+  return `${minutes}:${secs.toString().padStart(2, '0')}`;
+}
+
+export function useElapsedTimer(
+  timerStartTime: number | null,
+  completionTime: number | null,
+): number {
+  const [elapsed, setElapsed] = useState(0);
 
   useEffect(() => {
     if (timerStartTime === null) {
@@ -17,34 +31,27 @@ export const Timer: React.FC<TimerProps> = ({ timerStartTime, completionTime, la
 
     const updateTimer = () => {
       const endTime = completionTime || Date.now();
-      const elapsedMs = endTime - timerStartTime;
-      setElapsed(Math.floor(elapsedMs / 1000));
+      setElapsed(Math.floor((endTime - timerStartTime) / 1000));
     };
 
     updateTimer();
-    
-    // Only update if not completed (completionTime is null)
+
     if (completionTime === null) {
       const interval = setInterval(updateTimer, 1000);
       return () => clearInterval(interval);
     }
   }, [timerStartTime, completionTime]);
 
-  const formatTime = (seconds: number): string => {
-    const hours = Math.floor(seconds / 3600);
-    const minutes = Math.floor((seconds % 3600) / 60);
-    const secs = seconds % 60;
+  return elapsed;
+}
 
-    if (hours > 0) {
-      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
-    }
-    return `${minutes}:${secs.toString().padStart(2, '0')}`;
-  };
+export const Timer: React.FC<TimerProps> = ({ timerStartTime, completionTime, label }) => {
+  const elapsed = useElapsedTimer(timerStartTime, completionTime);
 
   return (
     <div className="timer">
       {label && <div className="timer__label">{label}</div>}
-      <div className="timer__display">{formatTime(elapsed)}</div>
+      <div className="timer__display">{formatElapsedSeconds(elapsed)}</div>
     </div>
   );
 };

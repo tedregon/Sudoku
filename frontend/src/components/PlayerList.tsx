@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { ProgressBar } from './ProgressBar';
-import { Timer } from './Timer';
 import type { PlayerProgress } from '../types/game.types.js';
 
 interface PlayerListProps {
@@ -45,15 +44,16 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, currentPlayerId
       {players.map((player) => {
         const isCurrentPlayer = player.playerId === currentPlayerId;
         const isEditing = editingPlayerId === player.playerId;
+        const isCompleted = player.completionTime !== null;
 
         return (
           <div
             key={player.playerId}
             className={`player-list__item ${
               isCurrentPlayer ? 'player-list__item--current' : ''
-            } ${player.completionTime !== null ? 'player-list__item--completed' : ''}`}
+            } ${isCompleted ? 'player-list__item--completed' : ''}`}
           >
-            <div className="player-list__header">
+            <div className={`player-list__header${isEditing ? ' player-list__header--editing' : ''}`}>
               <div className="player-list__name-container">
                 {isEditing ? (
                   <input
@@ -65,30 +65,72 @@ export const PlayerList: React.FC<PlayerListProps> = ({ players, currentPlayerId
                     onKeyDown={(e) => handleKeyDown(e, player.playerId)}
                     autoFocus
                   />
-                ) : (
-                  <div className="player-list__name">
-                    {player.playerName}
-                    {isCurrentPlayer && ' (You)'}
-                    {player.completionTime !== null && ' ✓'}
-                  </div>
-                )}
-                {isCurrentPlayer && !isEditing && (
+                ) : isCurrentPlayer ? (
                   <button
-                    className="player-list__edit-btn"
+                    type="button"
+                    className="player-list__name-button"
                     onClick={() => handleEditClick(player)}
                     title="Edit name"
                     aria-label="Edit name"
                   >
-                    ✏️
+                    <span className="player-list__name">{player.playerName}</span>
+                    <span className="player-list__you">(You)</span>
+                    <span className="player-list__edit-icon-wrap" aria-hidden="true">
+                      <svg
+                        className="player-list__edit-icon"
+                        viewBox="0 0 24 24"
+                        width="14"
+                        height="14"
+                        focusable="false"
+                      >
+                        <path
+                          d="M4 20h4.5L19.5 9l-4.5-4.5L4 15.5V20z"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinejoin="round"
+                        />
+                        <path
+                          d="M13.5 6l4.5 4.5"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="2"
+                          strokeLinecap="round"
+                        />
+                      </svg>
+                    </span>
                   </button>
+                ) : (
+                  <span className="player-list__name">{player.playerName}</span>
                 )}
               </div>
-              <Timer 
-                timerStartTime={player.timerStartTime} 
-                completionTime={player.completionTime}
-              />
+              {isCompleted && !isEditing && (
+                <span className="player-list__completed" title="Finished" aria-label="Finished">
+                  <svg
+                    className="player-list__check-icon"
+                    viewBox="0 0 24 24"
+                    width="18"
+                    height="18"
+                    aria-hidden="true"
+                    focusable="false"
+                  >
+                    <path
+                      d="M5 12.5l4.5 4.5L19 7.5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    />
+                  </svg>
+                </span>
+              )}
             </div>
-            <ProgressBar progress={player.progress} />
+            <ProgressBar
+              progress={player.progress}
+              timerStartTime={player.timerStartTime}
+              completionTime={player.completionTime}
+            />
           </div>
         );
       })}

@@ -2,6 +2,8 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import type { RoomState, PlayerProgress, Difficulty } from '../types/game.types.js';
 import { socketService, type RoomJoinedEvent, type MoveMadeEvent, type PuzzleRestartedEvent } from '../services/socketService.js';
 import { getConflicts, getCandidates } from '../utils/sudokuValidator.js';
+import type { GameSave } from '../utils/gameSaves.js';
+import { gridsMatch } from '../utils/gameSaves.js';
 
 const STORAGE_KEYS = {
   lastRoomCode: 'sudoku-last-room-code',
@@ -64,6 +66,7 @@ export function useGameState() {
   const roomStateRef = useRef<RoomState | null>(null);
   const cellNotesRef = useRef<Map<number, Set<number>>>(new Map());
   const moveHistoryRef = useRef<MoveHistoryEntry[]>([]);
+  const pendingLoadRef = useRef<GameSave | null>(null);
   
   // Keep roomStateRef in sync with roomState
   useEffect(() => {
@@ -253,10 +256,24 @@ export function useGameState() {
 
     const handlePuzzleRestarted = (data: PuzzleRestartedEvent) => {
       const isOurRestart = roomStateRef.current?.playerState?.playerId === data.playerId;
+      const pendingLoad = isOurRestart ? pendingLoadRef.current : null;
       if (isOurRestart) {
+        pendingLoadRef.current = null;
         moveHistoryRef.current = [];
         setHistoryVersion((v) => v + 1);
-        setCellNotes(new Map());
+
+        if (pendingLoad) {
+          const notesMap = new Map<number, Set<number>>();
+          for (const [key, digits] of Object.entries(pendingLoad.notes)) {
+            if (digits.length > 0) {
+              notesMap.set(Number(key), new Set(digits));
+            }
+          }
+          cellNotesRef.current = notesMap;
+          setCellNotes(notesMap);
+        } else {
+          setCellNotes(new Map());
+        }
       }
       setRoomState((prev) => {
         if (!prev) return null;
@@ -270,6 +287,29 @@ export function useGameState() {
           allPlayers: data.allPlayers,
         };
       });
+
+      if (pendingLoad) {
+        const moves = new Map<number, number>();
+        for (const [key, value] of Object.entries(pendingLoad.moves)) {
+          const cellIndex = Number(key);
+          if (!Number.isFinite(cellIndex) || value < 1 || value > 9) continue;
+          moves.set(cellIndex, value);
+          socketService.makeMove(cellIndex, value);
+        }
+        setRoomState((prev) => {
+          if (!prev?.playerState) return prev;
+          return {
+            ...prev,
+            playerState: {
+              ...prev.playerState,
+              moves,
+              progress: pendingLoad.progress,
+              timerStartTime: pendingLoad.timerStartTime,
+              completionTime: pendingLoad.completionTime,
+            },
+          };
+        });
+      }
     };
 
     const handlePlayerJoined = (data: { playerId: string; playerName: string; allPlayers: PlayerProgress[] }) => {
@@ -536,6 +576,31 @@ export function useGameState() {
     return !!roomState?.playerState;
   }, [roomState]);
 
+  const getNotesSnapshot = useCallback((): Record<string, number[]> => {
+    const notes: Record<string, number[]> = {};
+    for (const [cellIndex, digits] of cellNotesRef.current.entries()) {
+      if (digits.size > 0) {
+        notes[String(cellIndex)] = Array.from(digits).sort((a, b) => a - b);
+      }
+    }
+    return notes;
+  }, []);
+
+  const loadSavedGame = useCallback((save: GameSave): { ok: true } | { ok: false; error: string } => {
+    const current = roomStateRef.current;
+    if (!current?.playerState) {
+      return { ok: false, error: 'Join or create a room before loading a save.' };
+    }
+    if (!gridsMatch(current.puzzle.grid, save.puzzleGrid)) {
+      return { ok: false, error: 'That save is for a different puzzle. Load it in a matching room.' };
+    }
+
+    pendingLoadRef.current = save;
+    clearMoveHistory();
+    socketService.restartPuzzle();
+    return { ok: true };
+  }, [clearMoveHistory]);
+
   const getCellValue = useCallback((cellIndex: number): number | null => {
     if (!roomState) return null;
     // Check if pre-filled
@@ -617,6 +682,8 @@ export function useGameState() {
     canUndo,
     restartPuzzle,
     canRestartPuzzle,
+    getNotesSnapshot,
+    loadSavedGame,
     getCellValue,
     getCellCandidates,
     getCellConflicts,

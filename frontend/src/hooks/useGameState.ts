@@ -34,6 +34,7 @@ export type EntryMode = 'value' | 'notes';
 interface MoveHistoryEntry {
   cellIndex: number;
   previousValue: number | null;
+  previousNotes: number[];
 }
 
 function movesMapFromPlayerState(playerState: RoomState['playerState']): Map<number, number> {
@@ -41,6 +42,12 @@ function movesMapFromPlayerState(playerState: RoomState['playerState']): Map<num
   return playerState.moves instanceof Map
     ? new Map(playerState.moves)
     : new Map(Object.entries(playerState.moves || {}).map(([k, v]) => [Number(k), v as number]));
+}
+
+function notesArrayFromMap(notes: Map<number, Set<number>>, cellIndex: number): number[] {
+  const set = notes.get(cellIndex);
+  if (!set || set.size === 0) return [];
+  return Array.from(set).sort((a, b) => a - b);
 }
 
 export function useGameState() {
@@ -52,13 +59,42 @@ export function useGameState() {
   const [cellNotes, setCellNotes] = useState<Map<number, Set<number>>>(() => new Map());
   const [showCandidates, setShowCandidates] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  /** Bumps when undo stack changes so the Undo button enables/disables correctly. */
+  const [historyVersion, setHistoryVersion] = useState(0);
   const roomStateRef = useRef<RoomState | null>(null);
+  const cellNotesRef = useRef<Map<number, Set<number>>>(new Map());
   const moveHistoryRef = useRef<MoveHistoryEntry[]>([]);
   
   // Keep roomStateRef in sync with roomState
   useEffect(() => {
     roomStateRef.current = roomState;
   }, [roomState]);
+
+  useEffect(() => {
+    cellNotesRef.current = cellNotes;
+  }, [cellNotes]);
+
+  const clearMoveHistory = useCallback(() => {
+    if (moveHistoryRef.current.length === 0) return;
+    moveHistoryRef.current = [];
+    setHistoryVersion((v) => v + 1);
+  }, []);
+
+  const pushMoveHistory = useCallback((entry: MoveHistoryEntry) => {
+    moveHistoryRef.current.push(entry);
+    setHistoryVersion((v) => v + 1);
+  }, []);
+
+  const snapshotCellForHistory = useCallback((cellIndex: number): MoveHistoryEntry | null => {
+    const playerState = roomStateRef.current?.playerState;
+    if (!playerState) return null;
+    const moves = movesMapFromPlayerState(playerState);
+    return {
+      cellIndex,
+      previousValue: moves.get(cellIndex) ?? null,
+      previousNotes: notesArrayFromMap(cellNotesRef.current, cellIndex),
+    };
+  }, []);
 
   useEffect(() => {
     const socket = socketService.getSocket();
@@ -102,6 +138,8 @@ export function useGameState() {
     const handleRoomCreated = (data: RoomJoinedEvent) => {
       const playerName = data.playerState?.playerName || 'Player';
       persistRoom(data.roomCode, playerName, data.difficulty);
+      moveHistoryRef.current = [];
+      setHistoryVersion((v) => v + 1);
       setCellNotes(new Map());
       setRoomState({
         roomCode: data.roomCode,
@@ -116,7 +154,20 @@ export function useGameState() {
     const handleRoomJoined = (data: RoomJoinedEvent) => {
       const playerName = data.playerState?.playerName || 'Player';
       persistRoom(data.roomCode, playerName, data.difficulty);
-      setCellNotes(new Map());
+
+      const prev = roomStateRef.current;
+      const sameSession =
+        !!prev &&
+        prev.roomCode === data.roomCode &&
+        prev.playerState?.playerId === data.playerState?.playerId;
+
+      // Soft reconnect: keep undo stack and local notes. Fresh join: reset both.
+      if (!sameSession) {
+        moveHistoryRef.current = [];
+        setHistoryVersion((v) => v + 1);
+        setCellNotes(new Map());
+      }
+
       setRoomState({
         roomCode: data.roomCode,
         puzzle: data.puzzle,
@@ -125,8 +176,6 @@ export function useGameState() {
         allPlayers: data.allPlayers,
       });
       setError(null);
-      // Clear move history on rejoin (can't undo moves from before disconnect)
-      moveHistoryRef.current = [];
     };
 
     const handleRoomError = (error: { message: string }) => {
@@ -196,11 +245,6 @@ export function useGameState() {
           allPlayers: updatedPlayers,
         };
       });
-      
-      // If this move is from another player, clear our history (we can't undo other players' moves)
-      if (roomStateRef.current?.playerState && roomStateRef.current.playerState.playerId !== data.playerId) {
-        moveHistoryRef.current = [];
-      }
     };
 
     const handleMoveError = (error: { message: string }) => {
@@ -211,6 +255,7 @@ export function useGameState() {
       const isOurRestart = roomStateRef.current?.playerState?.playerId === data.playerId;
       if (isOurRestart) {
         moveHistoryRef.current = [];
+        setHistoryVersion((v) => v + 1);
         setCellNotes(new Map());
       }
       setRoomState((prev) => {
@@ -298,8 +343,8 @@ export function useGameState() {
 
   const joinRoom = useCallback((roomCode: string, playerName: string) => {
     socketService.joinRoom(roomCode, playerName);
-    moveHistoryRef.current = [];
-  }, []);
+    clearMoveHistory();
+  }, [clearMoveHistory]);
 
   const leaveRoom = useCallback(() => {
     socketService.leaveRoom();
@@ -309,31 +354,36 @@ export function useGameState() {
     setClearModeActive(false);
     setEntryModeState('value');
     setCellNotes(new Map());
-    moveHistoryRef.current = [];
-  }, []);
+    clearMoveHistory();
+  }, [clearMoveHistory]);
 
   const updatePlayerName = useCallback((newName: string) => {
     socketService.updatePlayerName(newName);
   }, []);
 
-  const makeMove = useCallback((cellIndex: number, value: number | null, trackHistory: boolean = true) => {
-    if (!roomState?.playerState) return;
-    
-    // Store the previous value before making the move (only if tracking history)
-    if (trackHistory) {
-      const moves = roomState.playerState.moves instanceof Map
-        ? roomState.playerState.moves
-        : new Map(Object.entries(roomState.playerState.moves || {}).map(([k, v]) => [Number(k), v as number]));
-      const previousValue = moves.get(cellIndex) || null;
-      
-      // Only track history if the value is actually changing
-      if (previousValue !== value) {
-        moveHistoryRef.current.push({ cellIndex, previousValue });
-      }
+  const makeMove = useCallback((cellIndex: number, value: number | null) => {
+    const prev = roomStateRef.current;
+    if (!prev?.playerState) return;
+
+    // Optimistic update so undo snapshots stay correct across rapid clicks
+    const moves = movesMapFromPlayerState(prev.playerState);
+    if (value === null || value === 0) {
+      moves.delete(cellIndex);
+    } else {
+      moves.set(cellIndex, value);
     }
-    
+    const next = {
+      ...prev,
+      playerState: {
+        ...prev.playerState,
+        moves,
+      },
+    };
+    roomStateRef.current = next;
+    setRoomState(next);
+
     socketService.makeMove(cellIndex, value);
-  }, [roomState]);
+  }, []);
 
   const selectNumber = useCallback((number: number | null) => {
     setSelectedNumber(number);
@@ -354,21 +404,38 @@ export function useGameState() {
 
   const getCellNotes = useCallback(
     (cellIndex: number): number[] => {
-      const set = cellNotes.get(cellIndex);
-      if (!set || set.size === 0) return [];
-      return Array.from(set).sort((a, b) => a - b);
+      return notesArrayFromMap(cellNotes, cellIndex);
     },
     [cellNotes],
   );
 
+  const restoreCellNotes = useCallback((cellIndex: number, notes: number[]) => {
+    setCellNotes((prev) => {
+      const next = new Map(prev);
+      if (notes.length === 0) {
+        if (!next.has(cellIndex)) return prev;
+        next.delete(cellIndex);
+      } else {
+        next.set(cellIndex, new Set(notes));
+      }
+      cellNotesRef.current = next;
+      return next;
+    });
+  }, []);
+
   const clearCellNotes = useCallback((cellIndex: number) => {
+    const snapshot = snapshotCellForHistory(cellIndex);
+    if (!snapshot || snapshot.previousNotes.length === 0) return;
+
+    pushMoveHistory(snapshot);
     setCellNotes((prev) => {
       if (!prev.has(cellIndex)) return prev;
       const next = new Map(prev);
       next.delete(cellIndex);
+      cellNotesRef.current = next;
       return next;
     });
-  }, []);
+  }, [snapshotCellForHistory, pushMoveHistory]);
 
   const toggleCellNote = useCallback(
     (cellIndex: number, digit: number) => {
@@ -376,6 +443,11 @@ export function useGameState() {
       if (roomState.puzzle.grid[cellIndex] !== null) return;
       const moves = movesMapFromPlayerState(roomState.playerState);
       if (moves.get(cellIndex)) return;
+
+      const snapshot = snapshotCellForHistory(cellIndex);
+      if (snapshot) {
+        pushMoveHistory(snapshot);
+      }
 
       setCellNotes((prev) => {
         const next = new Map(prev);
@@ -391,46 +463,74 @@ export function useGameState() {
         } else {
           next.set(cellIndex, updated);
         }
+        cellNotesRef.current = next;
         return next;
       });
     },
-    [roomState],
+    [roomState, snapshotCellForHistory, pushMoveHistory],
   );
 
   const fillCell = useCallback((cellIndex: number, value: number) => {
     if (!roomState?.playerState) return;
+
+    const snapshot = snapshotCellForHistory(cellIndex);
+    if (
+      snapshot &&
+      (snapshot.previousValue !== value || snapshot.previousNotes.length > 0)
+    ) {
+      pushMoveHistory(snapshot);
+    }
+
     setCellNotes((prev) => {
+      if (!prev.has(cellIndex)) return prev;
       const next = new Map(prev);
       next.delete(cellIndex);
+      cellNotesRef.current = next;
       return next;
     });
     makeMove(cellIndex, value);
-  }, [roomState, makeMove]);
+  }, [roomState, makeMove, snapshotCellForHistory, pushMoveHistory]);
 
   const clearCell = useCallback((cellIndex: number) => {
     if (!roomState?.playerState) return;
+
+    const snapshot = snapshotCellForHistory(cellIndex);
+    if (
+      snapshot &&
+      (snapshot.previousValue !== null || snapshot.previousNotes.length > 0)
+    ) {
+      pushMoveHistory(snapshot);
+    }
+
+    // Clearing a digit shouldn't wipe notes history tracking — cell is empty of value
     makeMove(cellIndex, null);
-  }, [roomState, makeMove]);
+  }, [roomState, makeMove, snapshotCellForHistory, pushMoveHistory]);
 
   const undo = useCallback(() => {
-    if (!roomState?.playerState || moveHistoryRef.current.length === 0) return;
-    
+    if (!roomStateRef.current?.playerState || moveHistoryRef.current.length === 0) return;
+
     const lastMove = moveHistoryRef.current.pop();
     if (!lastMove) return;
-    
-    // Restore the previous value (don't track history for undo operations)
-    makeMove(lastMove.cellIndex, lastMove.previousValue, false);
-  }, [roomState, makeMove]);
+    setHistoryVersion((v) => v + 1);
+
+    restoreCellNotes(lastMove.cellIndex, lastMove.previousNotes);
+
+    const moves = movesMapFromPlayerState(roomStateRef.current.playerState);
+    const currentValue = moves.get(lastMove.cellIndex) ?? null;
+    if (currentValue !== lastMove.previousValue) {
+      makeMove(lastMove.cellIndex, lastMove.previousValue);
+    }
+  }, [makeMove, restoreCellNotes]);
 
   const canUndo = useCallback((): boolean => {
-    return moveHistoryRef.current.length > 0;
-  }, []);
+    return historyVersion >= 0 && moveHistoryRef.current.length > 0;
+  }, [historyVersion]);
 
   const restartPuzzle = useCallback(() => {
     if (!roomState?.playerState) return;
-    moveHistoryRef.current = [];
+    clearMoveHistory();
     socketService.restartPuzzle();
-  }, [roomState]);
+  }, [roomState, clearMoveHistory]);
 
   const canRestartPuzzle = useCallback((): boolean => {
     return !!roomState?.playerState;

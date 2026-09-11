@@ -395,12 +395,12 @@ function App() {
             <p className="app__nav-footer">
               by{' '}
               <a
-                href="https://chipdoes.app"
+                href="https://designwithchip.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="app__nav-footer-link"
               >
-                chipdoes.app
+                designwithchip.com
               </a>
             </p>
           </div>

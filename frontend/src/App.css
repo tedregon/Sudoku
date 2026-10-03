@@ -2882,10 +2882,11 @@ html[data-theme="night"] .app__view-tab:hover {
 
 html[data-theme="night"] .app__view-tab--active,
 html[data-theme="night"] .app__view-tab--active:hover {
-  background-color: #fff;
-  border-color: #e6e6e6;
+  --tab-stroke: #3a4558;
+  background-color: #070B13;
+  border-color: var(--tab-stroke);
   border-right: none;
-  color: #4F3BF4;
+  color: #c4b8ff;
 }
 
 html[data-theme="night"] .app__account-placeholder-title {
@@ -3227,7 +3228,7 @@ html[data-theme="night"] .app__nav-menu {
 
   html[data-theme="night"] .app__view-tab--active,
   html[data-theme="night"] .app__view-tab--active:hover {
-    border-right: 1px solid #e6e6e6;
+    border-right: 1px solid var(--tab-stroke);
     border-radius: 8px;
   }
 }

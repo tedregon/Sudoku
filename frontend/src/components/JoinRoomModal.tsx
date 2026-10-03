@@ -1,14 +1,19 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 interface JoinRoomModalProps {
   isOpen: boolean;
+  initialName?: string;
   onClose: () => void;
   onJoin: (roomCode: string, playerName: string) => void;
 }
 
-export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({ isOpen, onClose, onJoin }) => {
+export const JoinRoomModal: React.FC<JoinRoomModalProps> = ({ isOpen, initialName = '', onClose, onJoin }) => {
   const [roomCode, setRoomCode] = useState('');
-  const [playerName, setPlayerName] = useState('');
+  const [playerName, setPlayerName] = useState(initialName);
+
+  useEffect(() => {
+    if (isOpen) setPlayerName(initialName);
+  }, [isOpen, initialName]);
 
   if (!isOpen) return null;
 

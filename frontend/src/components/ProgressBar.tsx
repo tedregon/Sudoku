@@ -19,28 +19,40 @@ export const ProgressBar: React.FC<ProgressBarProps> = ({
   const elapsed = useElapsedTimer(timerStartTime ?? null, completionTime ?? null);
   const timeText = formatElapsedSeconds(elapsed);
 
+  const isComplete = completionTime != null;
+
   return (
     <div className="progress-bar">
       {label && <div className="progress-bar__label">{label}</div>}
       <div className="progress-bar__container">
         <div
-          className="progress-bar__fill"
-          style={{ width: `${clamped}%` }}
+          className={`progress-bar__fill${isComplete ? ' progress-bar__fill--complete' : ''}`}
+          style={{ height: `${clamped}%` }}
         />
         {showTimer && (
-          <>
-            <span className="progress-bar__timer progress-bar__timer--base">
-              {timeText}
-            </span>
-            <div
-              className="progress-bar__timer-clip"
-              style={{ width: `${clamped}%` }}
-            >
-              <span className="progress-bar__timer progress-bar__timer--on-fill">
-                {timeText}
+          <div className="progress-bar__row">
+            {isComplete && (
+              <span className="progress-bar__check" title="Finished" aria-label="Finished">
+                <svg
+                  viewBox="0 0 24 24"
+                  width="14"
+                  height="14"
+                  aria-hidden="true"
+                  focusable="false"
+                >
+                  <path
+                    d="M5 12.5l4.5 4.5L19 7.5"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                </svg>
               </span>
-            </div>
-          </>
+            )}
+            <span className="progress-bar__time">{timeText}</span>
+          </div>
         )}
       </div>
     </div>

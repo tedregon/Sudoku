@@ -24,6 +24,9 @@ build/
 .DS_Store
 Thumbs.db
 
+# Local account database
+backend/data/
+
 # Logs
 logs/
 *.log

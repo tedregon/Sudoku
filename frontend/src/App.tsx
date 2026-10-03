@@ -6,15 +6,45 @@ import { GameBoard } from './components/GameBoard';
 import { NumberSelector } from './components/NumberSelector';
 import { JoinRoomModal } from './components/JoinRoomModal';
 import { LoadGameModal } from './components/LoadGameModal';
+import { AccountModal } from './components/AccountModal';
+import { useAuth } from './hooks/useAuth';
 import { PlayerList } from './components/PlayerList';
 import { Timer } from './components/Timer';
+import { Toast, ToastStack } from './components/ToastStack';
 import type { Difficulty } from './types/game.types';
 import {
   createGameSave,
   type GameSave,
 } from './utils/gameSaves';
-import copyIcon from './assets/img/copy.svg';
 import './App.css';
+
+type ColorTheme = 'day' | 'night';
+
+const THEME_STORAGE_KEY = 'sudoku-theme';
+
+function systemTheme(): ColorTheme {
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'night' : 'day';
+}
+
+function readThemePreference(): { useSystem: boolean; theme: ColorTheme } {
+  try {
+    const stored = localStorage.getItem(THEME_STORAGE_KEY);
+    if (stored === 'day' || stored === 'night') {
+      return { useSystem: false, theme: stored };
+    }
+  } catch {
+    // Ignore storage failures and fall through to the system preference.
+  }
+  return { useSystem: true, theme: systemTheme() };
+}
+
+function applyTheme(theme: ColorTheme) {
+  document.documentElement.dataset.theme = theme;
+  document.querySelector('meta[name="theme-color"]')?.setAttribute(
+    'content',
+    theme === 'night' ? '#0b0e14' : '#4F3BF4',
+  );
+}
 
 const DIFFICULTIES: Array<{ value: Difficulty; label: string }> = [
   { value: 'very-easy', label: 'Very Easy' },
@@ -60,23 +90,34 @@ function App() {
     getCompletedDigits,
   } = useGameState();
 
-  const [playerName, setPlayerName] = useState(() => {
-    // Try to get name from localStorage, otherwise use default
+  const auth = useAuth();
+  const [guestName, setGuestName] = useState(() => {
     return localStorage.getItem('sudoku-player-name') || 'Player';
   });
+  const playerName = auth.user?.name || guestName;
+  const [showAccountModal, setShowAccountModal] = useState(false);
+  const [accountMode, setAccountMode] = useState<'create' | 'sign-in'>('sign-in');
+  const [accountError, setAccountError] = useState<string | null>(null);
   const [showJoinModal, setShowJoinModal] = useState(false);
   const [showLoadModal, setShowLoadModal] = useState(false);
   const [gameSaves, setGameSaves] = useState<GameSave[]>([]);
   const [saveNotification, setSaveNotification] = useState<string | null>(null);
   const [showCopyNotification, setShowCopyNotification] = useState(false);
   const [showReconnectedMessage, setShowReconnectedMessage] = useState(false);
+  const [finishedDismissed, setFinishedDismissed] = useState(false);
+  const [dismissedError, setDismissedError] = useState<string | null>(null);
+  const [offlineDismissed, setOfflineDismissed] = useState(false);
   const [cellDigitFontSize, setCellDigitFontSize] = useState(1.75); // rem
   const [newVersionAvailable, setNewVersionAvailable] = useState(false);
   const [newVersionBannerDismissed, setNewVersionBannerDismissed] = useState(false);
   /** Hold Cmd (Mac) / Ctrl (Windows) to temporarily use Notes while Value is selected. */
   const [notesModifierHeld, setNotesModifierHeld] = useState(false);
   const [navMenuOpen, setNavMenuOpen] = useState(false);
+  const [appView, setAppView] = useState<'account' | 'game'>('game');
+  const [colorTheme, setColorTheme] = useState<ColorTheme>(() => readThemePreference().theme);
+  const [useSystemTheme, setUseSystemTheme] = useState(() => readThemePreference().useSystem);
   const navMenuRef = useRef<HTMLDivElement>(null);
+  const pendingAccountNameRef = useRef<string | null>(null);
   const hasAutoCreated = useRef(false);
   const hasCheckedUrlParams = useRef(false);
   const hasUrlRoomCode = useRef(false);
@@ -85,6 +126,58 @@ function App() {
 
   const effectiveEntryMode =
     entryMode === 'value' && notesModifierHeld ? 'notes' : entryMode;
+  const nightMode = colorTheme === 'night';
+
+  useEffect(() => {
+    applyTheme(colorTheme);
+  }, [colorTheme]);
+
+  useEffect(() => {
+    if (!useSystemTheme) return;
+    const media = window.matchMedia('(prefers-color-scheme: dark)');
+    const applySystem = () => {
+      const next = systemTheme();
+      setColorTheme(next);
+      applyTheme(next);
+    };
+    applySystem();
+    media.addEventListener('change', applySystem);
+    return () => media.removeEventListener('change', applySystem);
+  }, [useSystemTheme]);
+
+  const handleUseSystemThemeChange = (checked: boolean) => {
+    setUseSystemTheme(checked);
+    if (checked) {
+      try {
+        localStorage.removeItem(THEME_STORAGE_KEY);
+      } catch {
+        // The theme still follows the system for this session if storage is unavailable.
+      }
+      const next = systemTheme();
+      setColorTheme(next);
+      applyTheme(next);
+      return;
+    }
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, colorTheme);
+    } catch {
+      // The chosen theme still applies for this session if storage is unavailable.
+    }
+  };
+
+  const handleThemeToggle = () => {
+    if (useSystemTheme) return;
+    setColorTheme((current) => {
+      const next: ColorTheme = current === 'night' ? 'day' : 'night';
+      try {
+        localStorage.setItem(THEME_STORAGE_KEY, next);
+      } catch {
+        // The theme still applies for this session if storage is unavailable.
+      }
+      applyTheme(next);
+      return next;
+    });
+  };
 
   // Temporary Value → Notes while Cmd/Ctrl is held
   useEffect(() => {
@@ -155,7 +248,7 @@ function App() {
 
   // Check URL parameters for room code and auto-join (runs first, before auto-create)
   useEffect(() => {
-    if (hasCheckedUrlParams.current || roomState) {
+    if (!auth.ready || hasCheckedUrlParams.current || roomState) {
       return;
     }
 
@@ -172,38 +265,37 @@ function App() {
       // This is more robust than manually checking socket state
       joinRoom(roomCode, playerName);
     }
-  }, [joinRoom, playerName, roomState]);
+  }, [auth.ready, joinRoom, playerName, roomState]);
 
-  // Show a temporary "back online" message after we've been offline
+  // Show "back online" after a disconnect. The toast hides itself.
   useEffect(() => {
     const wasConnected = prevIsConnectedRef.current;
     prevIsConnectedRef.current = isConnected;
-
     if (!wasConnected && isConnected) {
       setShowReconnectedMessage(true);
-      const timeout = window.setTimeout(() => {
-        setShowReconnectedMessage(false);
-      }, 3000);
-      return () => window.clearTimeout(timeout);
     }
+    if (isConnected) setOfflineDismissed(false);
   }, [isConnected]);
+
+  useEffect(() => {
+    if (roomState?.playerState?.completionTime == null) setFinishedDismissed(false);
+  }, [roomState?.playerState?.completionTime]);
 
   // Try to re-join last room from localStorage (after URL check, before auto-create)
   useEffect(() => {
-    if (roomState || hasUrlRoomCode.current) {
+    if (!auth.ready || roomState || hasUrlRoomCode.current) {
       return;
     }
     const storedCode = localStorage.getItem('sudoku-last-room-code');
-    const storedName = localStorage.getItem('sudoku-last-player-name') || playerName;
     if (storedCode) {
-      joinRoom(storedCode, storedName);
+      joinRoom(storedCode, playerName);
     }
-  }, [joinRoom, playerName, roomState]);
+  }, [auth.ready, joinRoom, playerName, roomState]);
 
   // Auto-create "Very Hard" room on mount only when no URL room and no stored room to try
   useEffect(() => {
     // Don't auto-create if we're already in a room or have already auto-created
-    if (roomState || hasAutoCreated.current) {
+    if (!auth.ready || roomState || hasAutoCreated.current) {
       return;
     }
     // Don't auto-create if we are trying to join from URL params
@@ -246,14 +338,25 @@ function App() {
     return () => {
       clearTimeout(checkDelay);
     };
-  }, [roomState, createRoom, playerName]);
+  }, [auth.ready, roomState, createRoom, playerName]);
 
-  // Save player name to localStorage when it changes
+  // Guests keep a local name. Signed-in names live on the account.
   useEffect(() => {
-    if (playerName) {
-      localStorage.setItem('sudoku-player-name', playerName);
+    if (auth.user || !guestName) return;
+    localStorage.setItem('sudoku-player-name', guestName);
+  }, [auth.user, guestName]);
+
+  // Apply the saved account name if they sign in during a game.
+  useEffect(() => {
+    if (!auth.user || !roomState?.playerState) return;
+    const pending = pendingAccountNameRef.current;
+    if (pending) {
+      if (auth.user.name !== pending) return;
+      pendingAccountNameRef.current = null;
     }
-  }, [playerName]);
+    if (roomState.playerState.playerName === auth.user.name) return;
+    updatePlayerName(auth.user.name);
+  }, [auth.user, roomState?.playerState, updatePlayerName]);
 
   // Check for a newer deployed version and prompt refresh
   useEffect(() => {
@@ -312,8 +415,29 @@ function App() {
     handleDifficultyClick(difficulty);
   };
 
+  const handleUpdatePlayerName = (name: string) => {
+    updatePlayerName(name);
+    if (auth.user) {
+      pendingAccountNameRef.current = name;
+      const previousName = auth.user.name;
+      void auth.saveName(name).catch(() => {
+        if (pendingAccountNameRef.current === name) pendingAccountNameRef.current = null;
+        setAccountError('Could not save your name.');
+        updatePlayerName(previousName);
+      });
+    } else {
+      setGuestName(name);
+    }
+  };
+
   const handleJoinRoom = (roomCode: string, name: string) => {
-    setPlayerName(name);
+    if (auth.user) {
+      if (name !== auth.user.name) {
+        void auth.saveName(name).catch(() => setAccountError('Could not save your name.'));
+      }
+    } else {
+      setGuestName(name);
+    }
     joinRoom(roomCode, name);
   };
 
@@ -357,14 +481,12 @@ function App() {
 
     setGameSaves((prev) => [save, ...prev]);
     setSaveNotification(`Saved game ${save.number}`);
-    window.setTimeout(() => setSaveNotification(null), 2500);
   };
 
   const handleLoadGame = (save: GameSave) => {
     const result = loadSavedGame(save);
     if (!result.ok) {
       setSaveNotification(result.error);
-      window.setTimeout(() => setSaveNotification(null), 3500);
     }
   };
 
@@ -380,9 +502,6 @@ function App() {
     try {
       await navigator.clipboard.writeText(roomCode);
       setShowCopyNotification(true);
-      setTimeout(() => {
-        setShowCopyNotification(false);
-      }, 2000);
     } catch (err) {
       // Fallback for browsers that don't support clipboard API
       const textArea = document.createElement('textarea');
@@ -394,9 +513,6 @@ function App() {
       try {
         document.execCommand('copy');
         setShowCopyNotification(true);
-        setTimeout(() => {
-          setShowCopyNotification(false);
-        }, 2000);
       } catch (fallbackErr) {
         console.error('Failed to copy room code:', fallbackErr);
       }
@@ -456,33 +572,85 @@ function App() {
   };
 
   const showVersionBanner = newVersionAvailable && !newVersionBannerDismissed;
+  const visibleError = error && error !== dismissedError ? error : null;
+  const showFinished = roomState?.playerState?.completionTime != null && !finishedDismissed;
+  const showOffline = Boolean(roomState && !isConnected && !offlineDismissed);
 
   return (
     <div
-      className={`app${showVersionBanner ? ' app--version-banner-visible' : ''}`}
+      className="app"
       style={{ ['--cell-digit-font-size' as string]: `${cellDigitFontSize}rem` }}
     >
-      {showVersionBanner && (
-        <div className="app__new-version-banner" role="status">
-          <span>New version available.</span>
-          <div className="app__new-version-banner-actions">
-            <button
-              type="button"
-              className="app__new-version-banner-btn app__new-version-banner-btn--primary"
-              onClick={() => window.location.reload()}
-            >
-              Refresh
-            </button>
-            <button
-              type="button"
-              className="app__new-version-banner-btn app__new-version-banner-btn--cancel"
-              onClick={() => setNewVersionBannerDismissed(true)}
-            >
-              Cancel
-            </button>
-          </div>
-        </div>
-      )}
+      <ToastStack>
+        {showVersionBanner && (
+          <Toast tone="version" icon="refresh" onDismiss={() => setNewVersionBannerDismissed(true)}>
+            {(requestClose) => (
+              <>
+                <span>New version available</span>
+                <div className="app__new-version-banner-actions">
+                  <button
+                    type="button"
+                    className="app__new-version-banner-btn app__new-version-banner-btn--primary"
+                    onClick={() => window.location.reload()}
+                  >
+                    Refresh
+                  </button>
+                  <button
+                    type="button"
+                    className="app__new-version-banner-btn app__new-version-banner-btn--cancel"
+                    onClick={requestClose}
+                  >
+                    Cancel
+                  </button>
+                </div>
+              </>
+            )}
+          </Toast>
+        )}
+        {showFinished && roomState?.playerState && (
+          <Toast tone="success" icon="confetti" onDismiss={() => setFinishedDismissed(true)}>
+            <span className="app__completion-title">
+              You finished in{' '}
+              <span className="app__completion-time">
+                <Timer
+                  timerStartTime={roomState.playerState.timerStartTime}
+                  completionTime={roomState.playerState.completionTime}
+                />
+              </span>
+            </span>
+          </Toast>
+        )}
+        {visibleError && (
+          <Toast tone="error" icon="warning" onDismiss={() => setDismissedError(visibleError)}>
+            {visibleError}
+          </Toast>
+        )}
+        {showOffline && (
+          <Toast tone="info" icon="offline" onDismiss={() => setOfflineDismissed(true)}>
+            You're offline. We're trying to reconnect you back.
+          </Toast>
+        )}
+        {roomState && isConnected && showReconnectedMessage && (
+          <Toast tone="success" icon="online" autoHideMs={3000} onDismiss={() => setShowReconnectedMessage(false)}>
+            Hooray! We're back online!
+          </Toast>
+        )}
+        {saveNotification && (
+          <Toast
+            tone={saveNotification.startsWith('Saved') ? 'success' : 'error'}
+            icon={saveNotification.startsWith('Saved') ? 'save' : 'warning'}
+            autoHideMs={saveNotification.startsWith('Saved') ? 3000 : undefined}
+            onDismiss={() => setSaveNotification(null)}
+          >
+            {saveNotification}
+          </Toast>
+        )}
+        {showCopyNotification && (
+          <Toast tone="success" icon="copy" autoHideMs={3000} onDismiss={() => setShowCopyNotification(false)}>
+            Room code copied!
+          </Toast>
+        )}
+      </ToastStack>
       {/* Left navbar */}
       <div className="app__sidebar">
         <nav className="app__nav" ref={navMenuRef}>
@@ -492,21 +660,15 @@ function App() {
                 <button
                   type="button"
                   className="app__nav-title app__nav-title--link"
+                  aria-label="Sudoku Rivals"
                   onClick={handleGoHome}
                 >
-                  SudokuRivals
+                  <img src="/icon.png" alt="" className="app__nav-logo" />
+                  <span className="app__nav-wordmark">
+                    <span>Sudoku</span>
+                    <span>Rivals</span>
+                  </span>
                 </button>
-                <p className="app__nav-footer">
-                  by{' '}
-                  <a
-                    href="https://designwithchip.com"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="app__nav-footer-link"
-                  >
-                    designwithchip.com
-                  </a>
-                </p>
               </div>
               <button
                 type="button"
@@ -519,6 +681,30 @@ function App() {
                 <span className="app__nav-menu-toggle-bar" aria-hidden="true" />
                 <span className="app__nav-menu-toggle-bar" aria-hidden="true" />
                 <span className="app__nav-menu-toggle-bar" aria-hidden="true" />
+              </button>
+            </div>
+            <div className="app__view-tabs" role="tablist" aria-label="Sections">
+              <button
+                type="button"
+                role="tab"
+                id="view-tab-account"
+                className={`app__view-tab${appView === 'account' ? ' app__view-tab--active' : ''}`}
+                aria-selected={appView === 'account'}
+                aria-controls="view-panel-account"
+                onClick={() => setAppView('account')}
+              >
+                Account and Settings
+              </button>
+              <button
+                type="button"
+                role="tab"
+                id="view-tab-game"
+                className={`app__view-tab${appView === 'game' ? ' app__view-tab--active' : ''}`}
+                aria-selected={appView === 'game'}
+                aria-controls="view-panel-game"
+                onClick={() => setAppView('game')}
+              >
+                Game
               </button>
             </div>
             <div
@@ -570,8 +756,9 @@ function App() {
                     setNavMenuOpen(false);
                   }}
                   className="app__nav-join-btn"
+                  aria-label="New Game"
                 >
-                  New Game
+                  New
                 </button>
                 <button
                   type="button"
@@ -580,8 +767,9 @@ function App() {
                     setNavMenuOpen(false);
                   }}
                   className="app__nav-join-btn app__nav-join-btn--secondary"
+                  aria-label="Join Room"
                 >
-                  Join Room
+                  Join
                 </button>
               </div>
             </div>
@@ -592,10 +780,7 @@ function App() {
             <PlayerList
               players={roomState.allPlayers}
               currentPlayerId={roomState.playerState?.playerId || null}
-              onUpdatePlayerName={(newName) => {
-                setPlayerName(newName);
-                updatePlayerName(newName);
-              }}
+              onUpdatePlayerName={handleUpdatePlayerName}
             />
           </div>
         )}
@@ -605,8 +790,31 @@ function App() {
       {/* Join Room Modal */}
       <JoinRoomModal
         isOpen={showJoinModal}
+        initialName={playerName}
         onClose={() => setShowJoinModal(false)}
         onJoin={handleJoinRoom}
+      />
+      <AccountModal
+        isOpen={showAccountModal}
+        mode={accountMode}
+        googleClientId={auth.googleClientId}
+        onClose={() => setShowAccountModal(false)}
+        onModeChange={setAccountMode}
+        onCreate={async (name, email, password) => {
+          await auth.register(name, email, password);
+          setShowAccountModal(false);
+          setAccountError(null);
+        }}
+        onSignIn={async (email, password) => {
+          await auth.login(email, password);
+          setShowAccountModal(false);
+          setAccountError(null);
+        }}
+        onGoogle={async (credential) => {
+          await auth.loginGoogle(credential);
+          setShowAccountModal(false);
+          setAccountError(null);
+        }}
       />
       <LoadGameModal
         isOpen={showLoadModal}
@@ -616,8 +824,84 @@ function App() {
         onDelete={handleDeleteSave}
       />
 
-      {/* Main Content */}
-      <div className="app__container app__container--game">
+      {appView === 'account' ? (
+        <div
+          className="app__container app__container--account"
+          id="view-panel-account"
+          role="tabpanel"
+          aria-labelledby="view-tab-account"
+        >
+          <div className="app__settings">
+            <h2 className="app__account-placeholder-title">Account and Settings</h2>
+            <section className="app__settings-section" aria-labelledby="settings-appearance">
+              <h3 id="settings-appearance" className="app__settings-heading">Appearance</h3>
+              <div className="app__theme-setting">
+                <label className="app__toggle app__theme-system">
+                  <input
+                    type="checkbox"
+                    checked={useSystemTheme}
+                    onChange={(e) => handleUseSystemThemeChange(e.target.checked)}
+                  />
+                  <span>Use system settings</span>
+                </label>
+                <button
+                  type="button"
+                  className={`app__theme-toggle${nightMode ? ' app__theme-toggle--on' : ''}`}
+                  aria-pressed={nightMode}
+                  aria-label={nightMode ? 'Switch to day mode' : 'Switch to night mode'}
+                  title={useSystemTheme ? 'Following system settings' : nightMode ? 'Day mode' : 'Night mode'}
+                  disabled={useSystemTheme}
+                  onClick={handleThemeToggle}
+                >
+                  <span className="app__theme-toggle-track" aria-hidden="true">
+                    <span className="app__theme-toggle-thumb" />
+                  </span>
+                  <span className="app__theme-toggle-label">Night mode</span>
+                </button>
+              </div>
+            </section>
+            <section className="app__settings-section" aria-labelledby="settings-account">
+              <h3 id="settings-account" className="app__settings-heading">Account</h3>
+              <div className="app__account">
+              {auth.user ? (
+                <>
+                  <p className="app__account-name" title={auth.user.email}>{auth.user.name}</p>
+                  <p className="app__account-hint">Name saved to your account</p>
+                  <button
+                    type="button"
+                    className="app__nav-join-btn app__nav-join-btn--secondary"
+                    onClick={() => {
+                      void auth.logout();
+                    }}
+                  >
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="app__nav-join-btn app__nav-join-btn--secondary"
+                  onClick={() => {
+                    setAccountMode('sign-in');
+                    setShowAccountModal(true);
+                    setAccountError(null);
+                  }}
+                >
+                  Sign in
+                </button>
+              )}
+              {accountError && <p className="account-modal__error" role="alert">{accountError}</p>}
+            </div>
+            </section>
+          </div>
+        </div>
+      ) : (
+      <div
+        className="app__container app__container--game"
+        id="view-panel-game"
+        role="tabpanel"
+        aria-labelledby="view-tab-game"
+      >
         <div className="app__game-content">
           {/* Subheader - Inside app_container */}
           {roomState && (
@@ -634,16 +918,22 @@ function App() {
                     title="Copy room code"
                   >
                     <span className="app__subheader-code-text">{roomState.roomCode}</span>
-                    <img src={copyIcon} alt="" className="app__copy-icon" aria-hidden />
+                    <svg
+                      className="app__copy-icon"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 256 256"
+                      width="20"
+                      height="20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M184,64H40a8,8,0,0,0-8,8V216a8,8,0,0,0,8,8H184a8,8,0,0,0,8-8V72A8,8,0,0,0,184,64Zm-8,144H48V80H176ZM224,40V184a8,8,0,0,1-16,0V48H72a8,8,0,0,1,0-16H216A8,8,0,0,1,224,40Z" />
+                    </svg>
                   </button>
-                  {showCopyNotification && (
-                    <div className="app__notification">
-                      Room code copied!
-                    </div>
-                  )}
                 </div>
               </div>
-              <div className="app__subheader-controls">
+              <div className="app__save-load app__save-load--subheader">
                 <button
                   type="button"
                   onClick={restartPuzzle}
@@ -666,7 +956,28 @@ function App() {
                   </svg>
                   <span className="app__restart-label">Restart</span>
                 </button>
-                <div className="app__save-load app__save-load--subheader">
+                <span className="app__subheader-divider" aria-hidden="true" />
+                <button
+                    type="button"
+                    className="app__save-load-btn app__save-load-btn--secondary"
+                    onClick={() => setShowLoadModal(true)}
+                    title="Load game"
+                    aria-label="Load game"
+                  >
+                    <svg
+                      className="app__save-load-icon"
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 256 256"
+                      width="20"
+                      height="20"
+                      fill="currentColor"
+                      aria-hidden="true"
+                      focusable="false"
+                    >
+                      <path d="M216,72H131.31L104,44.69A15.86,15.86,0,0,0,92.69,40H40A16,16,0,0,0,24,56V200.62A15.4,15.4,0,0,0,39.38,216H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72ZM40,56H92.69l16,16H40ZM216,200H40V88H216Z" />
+                    </svg>
+                    <span className="app__save-load-label">Load</span>
+                  </button>
                   <button
                     type="button"
                     className="app__save-load-btn app__save-load-btn--secondary"
@@ -689,65 +1000,7 @@ function App() {
                     </svg>
                     <span className="app__save-load-label">Save</span>
                   </button>
-                  <button
-                    type="button"
-                    className="app__save-load-btn app__save-load-btn--secondary"
-                    onClick={() => setShowLoadModal(true)}
-                    title="Load game"
-                    aria-label="Load game"
-                  >
-                    <svg
-                      className="app__save-load-icon"
-                      xmlns="http://www.w3.org/2000/svg"
-                      viewBox="0 0 256 256"
-                      width="20"
-                      height="20"
-                      fill="currentColor"
-                      aria-hidden="true"
-                      focusable="false"
-                    >
-                      <path d="M216,72H131.31L104,44.69A15.86,15.86,0,0,0,92.69,40H40A16,16,0,0,0,24,56V200.62A15.4,15.4,0,0,0,39.38,216H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72ZM40,56H92.69l16,16H40ZM216,200H40V88H216Z" />
-                    </svg>
-                    <span className="app__save-load-label">Load</span>
-                  </button>
                 </div>
-              </div>
-              <div className="app__subheader-messages">
-                {roomState && !isConnected && (
-                  <div className="app__reconnecting" role="status">
-                    You're offline. We're trying to reconnect you back.
-                  </div>
-                )}
-                {roomState && isConnected && showReconnectedMessage && (
-                  <div className="app__reconnecting" role="status">
-                    Hooray! We're back online!
-                  </div>
-                )}
-                {saveNotification && (
-                  <div
-                    className={
-                      saveNotification.startsWith('Saved')
-                        ? 'app__status-message'
-                        : 'app__error'
-                    }
-                    role="status"
-                  >
-                    {saveNotification}
-                  </div>
-                )}
-                {error && <div className="app__error">{error}</div>}
-                {roomState.playerState?.completionTime != null && (
-                  <div className="app__completion-message">
-                    <h2 className="app__completion-title">🎉 You Finished in</h2>
-                    <div className="app__completion-time">
-                      <Timer
-                        timerStartTime={roomState.playerState.timerStartTime}
-                        completionTime={roomState.playerState.completionTime}
-                      />
-                    </div>
-                  </div>
-                )}
-              </div>
             </div>
           )}
 
@@ -784,51 +1037,6 @@ function App() {
                       />
 
                       <div className="app__controls">
-                        <div className="app__save-load app__save-load--controls">
-                          <button
-                            type="button"
-                            className="app__save-load-btn app__save-load-btn--secondary"
-                            onClick={handleSaveGame}
-                            disabled={!roomState?.playerState}
-                            title="Save game"
-                            aria-label="Save game"
-                          >
-                            <svg
-                              className="app__save-load-icon"
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 256 256"
-                              width="20"
-                              height="20"
-                              fill="currentColor"
-                              aria-hidden="true"
-                              focusable="false"
-                            >
-                              <path d="M219.31,72,184,36.69A15.86,15.86,0,0,0,172.69,32H48A16,16,0,0,0,32,48V208a16,16,0,0,0,16,16H208a16,16,0,0,0,16-16V83.31A15.86,15.86,0,0,0,219.31,72ZM168,208H88V152h80Zm40,0H184V152a16,16,0,0,0-16-16H88a16,16,0,0,0-16,16v56H48V48H172.69L208,83.31ZM160,72a8,8,0,0,1-8,8H96a8,8,0,0,1,0-16h56A8,8,0,0,1,160,72Z" />
-                            </svg>
-                            <span className="app__save-load-label">Save</span>
-                          </button>
-                          <button
-                            type="button"
-                            className="app__save-load-btn app__save-load-btn--secondary"
-                            onClick={() => setShowLoadModal(true)}
-                            title="Load game"
-                            aria-label="Load game"
-                          >
-                            <svg
-                              className="app__save-load-icon"
-                              xmlns="http://www.w3.org/2000/svg"
-                              viewBox="0 0 256 256"
-                              width="20"
-                              height="20"
-                              fill="currentColor"
-                              aria-hidden="true"
-                              focusable="false"
-                            >
-                              <path d="M216,72H131.31L104,44.69A15.86,15.86,0,0,0,92.69,40H40A16,16,0,0,0,24,56V200.62A15.4,15.4,0,0,0,39.38,216H216.89A15.13,15.13,0,0,0,232,200.89V88A16,16,0,0,0,216,72ZM40,56H92.69l16,16H40ZM216,200H40V88H216Z" />
-                            </svg>
-                            <span className="app__save-load-label">Load</span>
-                          </button>
-                        </div>
                         <div className="app__controls-secondary">
                           <label className="app__toggle">
                             <input
@@ -866,6 +1074,7 @@ function App() {
           )}
         </div>
       </div>
+      )}
       </div>
     </div>
   );

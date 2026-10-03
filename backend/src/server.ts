@@ -6,6 +6,23 @@ import { RoomManager } from './services/roomManager.js';
 import { GameStateManager } from './services/gameStateManager.js';
 import type { MakeMovePayload, JoinRoomPayload, CreateRoomPayload, PlayerState } from './types/game.types.js';
 import { clientIpFromSocket, logSocketEvent, shortUserAgent } from './socketLog.js';
+import { openAuthStore } from './auth/store.js';
+import { AuthService } from './auth/service.js';
+import { createAuthRouter } from './routes/auth.js';
+
+function isAllowedOrigin(origin: string | undefined): boolean {
+  if (!origin) return true;
+  if (origin === 'http://localhost:5173' || origin === 'http://127.0.0.1:5173') return true;
+  if (process.env.FRONTEND_URL && origin === process.env.FRONTEND_URL) return true;
+  try {
+    const url = new URL(origin);
+    return url.protocol === 'https:'
+      && url.hostname.endsWith('.up.railway.app')
+      && url.hostname.includes('sudoku');
+  } catch {
+    return false;
+  }
+}
 
 function serializePlayerState(playerState: PlayerState | undefined) {
   if (!playerState) return null;
@@ -81,7 +98,17 @@ const io = new Server(httpServer, {
   },
 });
 
-app.use(cors());
+app.set('trust proxy', 1);
+app.use(cors({
+  origin(origin, callback) {
+    if (isAllowedOrigin(origin)) {
+      callback(null, origin ?? true);
+      return;
+    }
+    callback(null, false);
+  },
+  credentials: true,
+}));
 app.use(express.json());
 
 const roomManager = new RoomManager();
@@ -411,6 +438,15 @@ io.on('connection', (socket) => {
 });
 
 const PORT = process.env.PORT || 3001;
-httpServer.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+
+openAuthStore()
+  .then((store) => {
+    app.use('/api/auth', createAuthRouter(new AuthService(store)));
+    httpServer.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  })
+  .catch((error) => {
+    console.error('Failed to open auth store', error);
+    process.exit(1);
+  });

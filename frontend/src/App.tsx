@@ -693,7 +693,7 @@ function App() {
                 aria-controls="view-panel-account"
                 onClick={() => setAppView('account')}
               >
-                Account and Settings
+                Account & Settings
               </button>
               <button
                 type="button"
@@ -832,17 +832,17 @@ function App() {
           aria-labelledby="view-tab-account"
         >
           <div className="app__settings">
-            <h2 className="app__account-placeholder-title">Account and Settings</h2>
+            <h2 className="app__account-placeholder-title">Account & Settings</h2>
             <section className="app__settings-section" aria-labelledby="settings-appearance">
               <h3 id="settings-appearance" className="app__settings-heading">Appearance</h3>
-              <div className="app__theme-setting">
+              <div className="app__appearance">
                 <label className="app__toggle app__theme-system">
+                  <span>Use system settings</span>
                   <input
                     type="checkbox"
                     checked={useSystemTheme}
                     onChange={(e) => handleUseSystemThemeChange(e.target.checked)}
                   />
-                  <span>Use system settings</span>
                 </label>
                 <button
                   type="button"
@@ -853,11 +853,32 @@ function App() {
                   disabled={useSystemTheme}
                   onClick={handleThemeToggle}
                 >
+                  <span className="app__theme-toggle-label">Night mode</span>
                   <span className="app__theme-toggle-track" aria-hidden="true">
                     <span className="app__theme-toggle-thumb" />
                   </span>
-                  <span className="app__theme-toggle-label">Night mode</span>
                 </button>
+                <span className="app__font-size-label" id="settings-cell-size">Cell size</span>
+                <div className="app__font-size-buttons" role="group" aria-labelledby="settings-cell-size">
+                  <button
+                    type="button"
+                    className="app__font-size-btn"
+                    onClick={() => setCellDigitFontSize((s) => Math.max(1, s - 0.25))}
+                    title="Decrease cell digit size"
+                    aria-label="Decrease cell digit size"
+                  >
+                    A-
+                  </button>
+                  <button
+                    type="button"
+                    className="app__font-size-btn"
+                    onClick={() => setCellDigitFontSize((s) => Math.min(2.5, s + 0.25))}
+                    title="Increase cell digit size"
+                    aria-label="Increase cell digit size"
+                  >
+                    A+
+                  </button>
+                </div>
               </div>
             </section>
             <section className="app__settings-section" aria-labelledby="settings-account">
@@ -1011,17 +1032,19 @@ function App() {
                   <div
                     className={`app__game-area${selectedNumber !== null || clearModeActive ? ' app__game-area--digit-active' : ''}`}
                   >
-                    <GameBoard
-                      puzzle={roomState.puzzle.grid}
-                      showCandidates={showCandidates}
-                      getCellValue={getCellValue}
-                      getCellCandidates={getCellCandidates}
-                      getCellNotes={getCellNotes}
-                      getCellConflicts={getCellConflicts}
-                      getHighlightedCells={getHighlightedCells}
-                      onCellClick={handleCellClick}
-                      onKeyDown={handleKeyDown}
-                    />
+                    <div className="app__board-slot">
+                      <GameBoard
+                        puzzle={roomState.puzzle.grid}
+                        showCandidates={showCandidates}
+                        getCellValue={getCellValue}
+                        getCellCandidates={getCellCandidates}
+                        getCellNotes={getCellNotes}
+                        getCellConflicts={getCellConflicts}
+                        getHighlightedCells={getHighlightedCells}
+                        onCellClick={handleCellClick}
+                        onKeyDown={handleKeyDown}
+                      />
+                    </div>
 
                     <div className="app__game-controls">
                       <NumberSelector
@@ -1046,24 +1069,6 @@ function App() {
                             />
                             <span>Show candidates</span>
                           </label>
-                          <div className="app__font-size-buttons">
-                            <button
-                              type="button"
-                              className="app__font-size-btn"
-                              onClick={() => setCellDigitFontSize((s) => Math.max(1, s - 0.25))}
-                              title="Decrease cell digit size"
-                            >
-                              A-
-                            </button>
-                            <button
-                              type="button"
-                              className="app__font-size-btn"
-                              onClick={() => setCellDigitFontSize((s) => Math.min(2.5, s + 0.25))}
-                              title="Increase cell digit size"
-                            >
-                              A+
-                            </button>
-                          </div>
                         </div>
                       </div>
                     </div>

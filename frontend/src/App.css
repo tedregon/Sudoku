@@ -74,15 +74,30 @@ body {
   gap: 0.75rem;
 }
 
-.app__theme-setting {
-  display: flex;
+.app__appearance {
+  display: grid;
+  grid-template-columns: max-content max-content;
   align-items: center;
-  flex-wrap: wrap;
-  gap: 1.25rem;
+  justify-items: start;
+  column-gap: 1rem;
+  row-gap: 0.75rem;
 }
 
-.app__theme-system {
+.app__appearance .app__theme-system,
+.app__appearance .app__theme-toggle {
+  display: grid;
+  grid-column: 1 / -1;
+  grid-template-columns: subgrid;
+  align-items: center;
+  justify-items: start;
+  justify-content: start;
   width: auto;
+  gap: normal;
+}
+
+.app__appearance .app__theme-system {
+  width: auto;
+  font-weight: 500;
 }
 
 .app__theme-toggle {
@@ -98,7 +113,7 @@ body {
   color: #061222;
   font-family: "Figtree", sans-serif;
   font-size: 1rem;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: -0.01em;
   line-height: 1;
   cursor: pointer;
@@ -514,7 +529,7 @@ body {
 .app__subheader-room {
   display: flex;
   align-items: center;
-  gap: 1rem;
+  gap: 0.5rem;
   min-width: 0;
   flex: 0 0 auto;
 }
@@ -973,15 +988,22 @@ body {
   outline-offset: 2px;
 }
 
+.app__font-size-label {
+  font-size: 1rem;
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: 1;
+}
+
 .app__font-size-buttons {
   display: flex;
   gap: 0.5rem;
-  margin-top: 0.75rem;
 }
 
 .app__font-size-btn {
-  flex: 1;
-  padding: 0.5rem;
+  flex: 0 0 auto;
+  min-width: 2.75rem;
+  padding: 0.5rem 0.65rem;
   font-size: 1rem;
   font-weight: 600;
   border: 1px solid #9f9f9f;
@@ -2328,6 +2350,155 @@ html[data-theme="night"] .player-list__item--current .player-list__name {
   background-size: 2px 100%, 0 0;
 }
 
+/* Desktop: keep the square puzzle inside the viewport, 32px above the bottom edge. */
+@media (min-width: 769px) {
+  body {
+    background-color: #F5F5F5;
+  }
+
+  .app {
+    width: 100%;
+    max-width: 1200px;
+    margin-inline: auto;
+    height: 100dvh;
+    max-height: 100dvh;
+    overflow: hidden;
+  }
+
+  .app__sidebar,
+  .app__main {
+    min-height: 0;
+  }
+
+  /* Nav absorbs leftover width on the left. The game panel is only as wide
+     as the puzzle row, so its right edge sits against the keypad. */
+  .app {
+    --keypad-width: calc(3 * 60px + 2 * 0.5rem);
+    --game-header-height: calc(1.5rem * 1.65 + 1.5rem);
+    container-type: size;
+  }
+
+  .app:has(.app__container--game) .app__sidebar {
+    flex: 1 1 204px;
+    width: auto;
+    min-width: 204px;
+    max-width: none;
+  }
+
+  .app:has(.app__container--game) .app__main {
+    flex: 0 0 auto;
+    width: min(
+      calc(100cqi - 204px),
+      calc(100cqb - 1rem - 32px - var(--game-header-height) + 6rem + var(--keypad-width) + 1px)
+    );
+    max-width: calc(100cqi - 204px);
+    min-width: 0;
+  }
+
+  .app__container--game {
+    min-height: 0;
+    flex-direction: column;
+    align-items: stretch;
+    padding-bottom: 32px;
+    max-width: none;
+  }
+
+  .app__container--account {
+    min-height: 0;
+    overflow: auto;
+  }
+
+  .app__game-content,
+  .app__game-layout,
+  .app__main-content {
+    flex: 1 1 auto;
+    min-height: 0;
+    min-width: 0;
+  }
+
+  .app__game-content {
+    --keypad-width: calc(3 * 60px + 2 * 0.5rem);
+    --game-header-height: calc(1.5rem * 1.65 + 1.5rem);
+    container-type: size;
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .app__subheader {
+    align-self: stretch;
+    box-sizing: border-box;
+    flex: 0 0 var(--game-header-height);
+    height: var(--game-header-height);
+    width: 100%;
+    max-width: 100%;
+  }
+
+  .app__main-content {
+    align-items: stretch;
+    justify-content: flex-start;
+    width: 100%;
+  }
+
+  .app__game-area {
+    flex: 1 1 auto;
+    align-self: stretch;
+    align-items: flex-start;
+    justify-content: flex-start;
+    width: 100%;
+    max-width: 100%;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+  }
+
+  .app__board-slot {
+    flex: 0 1 auto;
+    align-self: flex-start;
+    min-width: 0;
+    min-height: 0;
+    height: 100%;
+    display: flex;
+    align-items: flex-start;
+    justify-content: flex-start;
+  }
+
+  .app__board-slot .game-board {
+    flex: 0 1 auto;
+    width: min(
+      calc(100cqb - var(--game-header-height)),
+      calc(100cqi - 2rem - var(--keypad-width))
+    );
+    max-width: 100%;
+    max-height: 100%;
+    height: auto;
+    margin: 0;
+    min-width: 0;
+  }
+
+  .app__game-controls {
+    flex: 0 0 auto;
+    align-self: flex-start;
+    align-items: stretch;
+    width: var(--keypad-width);
+    min-width: 0;
+    min-height: 0;
+    max-height: 100%;
+    overflow: auto;
+  }
+
+  .app__game-controls .number-selector {
+    align-items: stretch;
+    width: 100%;
+  }
+
+  .app__game-controls .number-selector__grid,
+  .app__game-controls .number-selector__toolbar,
+  .app__game-controls .number-selector__clear-digit,
+  .app__game-controls .number-selector__undo {
+    width: 100%;
+    max-width: none;
+  }
+}
 
 @media (max-width: 768px) {
   .app {
@@ -2345,9 +2516,11 @@ html[data-theme="night"] .player-list__item--current .player-list__name {
     max-width: none;
     width: 100%;
     min-height: 0;
+    position: relative;
+    z-index: 1;
     background-color: #F5F5F5;
     border-bottom: none;
-    padding: 1rem;
+    padding: 1rem 1rem 0;
   }
 
   .app__main {
@@ -2359,6 +2532,7 @@ html[data-theme="night"] .player-list__item--current .player-list__name {
     flex: 0 0 auto;
     border-left: none;
     border-right: none;
+    border-top: 1px solid #e0e0e0;
   }
 
   .app__players {
@@ -2448,7 +2622,8 @@ html[data-theme="night"] .player-list__item--current .player-list__name {
     min-width: 0;
     margin-right: 0;
     border: 1px solid var(--tab-stroke);
-    border-radius: 8px;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
     text-align: center;
   }
 
@@ -2456,8 +2631,19 @@ html[data-theme="night"] .player-list__item--current .player-list__name {
   .app__view-tab--active:hover {
     width: auto;
     margin-right: 0;
-    border-right: 1px solid var(--tab-stroke);
-    border-radius: 8px;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+  }
+
+  .app__view-tab--active::after,
+  .app__view-tab--active:hover::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 1px;
+    background-color: #fff;
   }
 
   .app__nav-menu {
@@ -2615,6 +2801,11 @@ html[data-theme="night"] .player-list__item--current .player-list__name {
     flex-direction: column;
     align-items: center;
     gap: 0.75rem;
+  }
+
+  .app__board-slot {
+    width: 100%;
+    align-self: stretch;
   }
 
   .app__game-controls {
@@ -3229,7 +3420,13 @@ html[data-theme="night"] .app__nav-menu {
   html[data-theme="night"] .app__view-tab--active,
   html[data-theme="night"] .app__view-tab--active:hover {
     border-right: 1px solid var(--tab-stroke);
-    border-radius: 8px;
+    border-bottom: none;
+    border-radius: 8px 8px 0 0;
+  }
+
+  html[data-theme="night"] .app__view-tab--active::after,
+  html[data-theme="night"] .app__view-tab--active:hover::after {
+    background-color: #070B13;
   }
 }
 

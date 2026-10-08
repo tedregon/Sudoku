@@ -30,8 +30,10 @@ export default defineConfig({
           {
             urlPattern: ({ request, url }) =>
               request.mode === 'navigate' &&
+              request.destination === 'document' &&
               !url.pathname.startsWith('/socket.io') &&
-              !url.pathname.startsWith('/api'),
+              !url.pathname.startsWith('/api') &&
+              !/\.(?:png|ico|svg|webmanifest|json|webp|jpe?g|gif)$/i.test(url.pathname),
             handler: 'NetworkFirst',
             options: {
               cacheName: 'pages',

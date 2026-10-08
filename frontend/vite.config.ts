@@ -23,7 +23,7 @@ export default defineConfig({
       workbox: {
         // Hashed JS/CSS and icons are safe to precache. HTML stays network-first
         // so a refresh picks up a new deploy, with the last page cached for offline launch.
-        globPatterns: ['**/*.{js,css,svg,png,webmanifest,woff2}'],
+        globPatterns: ['**/*.{js,css,svg,png,ico,webmanifest,woff2}'],
         globIgnores: ['**/version.json'],
         navigateFallback: undefined,
         runtimeCaching: [
